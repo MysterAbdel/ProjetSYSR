@@ -9,8 +9,9 @@
 
 package jvn;
 
+import java.io.Serializable;
+import java.rmi.Naming;
 import java.rmi.server.UnicastRemoteObject;
-import java.io.*;
 
 
 
@@ -25,13 +26,20 @@ public class JvnServerImpl
 	// A JVN server is managed as a singleton 
 	private static JvnServerImpl js = null;
 
+	private JvnCoordImpl jvnCoord;
+	private String jvnCoordURL = "//localhost:2001/JvnCoordinatorLink";
+
   /**
   * Default constructor
   * @throws JvnException
   **/
 	private JvnServerImpl() throws Exception {
 		super();
-		// to be completed
+		try {
+			jvnCoord = (JvnCoordImpl) Naming.lookup(jvnCoordURL);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
   /**
@@ -56,7 +64,11 @@ public class JvnServerImpl
 	**/
 	public  void jvnTerminate()
 	throws jvn.JvnException {
-    // to be completed 
+		try {
+			jvnCoord.jvnTerminate(js);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	} 
 	
 	/**
@@ -66,8 +78,18 @@ public class JvnServerImpl
 	**/
 	public  JvnObject jvnCreateObject(Serializable o)
 	throws jvn.JvnException { 
-		// to be completed 
-		return null; 
+
+		//TODO : poser un verrou en ecriture sur l'objet en cours de création
+		//TODO : penser aux verrous en général
+
+		JvnObjectImpl jo = (JvnObjectImpl) o;
+		try {
+			jo = (JvnObjectImpl) o;
+			jo.setUniqueId(jvnCoord.jvnGetObjectId());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return (JvnObject) jo; 
 	}
 	
 	/**
@@ -78,7 +100,11 @@ public class JvnServerImpl
 	**/
 	public  void jvnRegisterObject(String jon, JvnObject jo)
 	throws jvn.JvnException {
-		// to be completed 
+		try {
+			jvnCoord.jvnRegisterObject(jon, jo, this);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 	/**
@@ -89,8 +115,13 @@ public class JvnServerImpl
 	**/
 	public  JvnObject jvnLookupObject(String jon)
 	throws jvn.JvnException {
-    // to be completed 
-		return null;
+		JvnObject jo = null;
+		try {
+			jo = jvnCoord.jvnLookupObject(jon, js);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return jo;
 	}	
 	
 	/**

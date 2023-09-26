@@ -9,8 +9,11 @@
 
 package jvn;
 
-import java.rmi.server.UnicastRemoteObject;
 import java.io.Serializable;
+import java.rmi.Naming;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.server.UnicastRemoteObject;
+import java.util.HashMap;
 
 
 public class JvnCoordImpl 	
@@ -21,14 +24,20 @@ public class JvnCoordImpl
   /**
 	 * 
 	 */
-	private static final long serialVersionUID = 1L;
+	private static long serialVersionUID = 1L;
+
+  private HashMap<JvnRemoteServer,HashMap<String,JvnObjectImpl>> objetsPartages;
+  private String jvnCoordURL = "//localhost:2001/JvnCoordinatorLink";
 
 /**
   * Default constructor
   * @throws JvnException
   **/
 	private JvnCoordImpl() throws Exception {
-		// to be completed
+    super();
+    objetsPartages = new HashMap<JvnRemoteServer,HashMap<String,JvnObjectImpl>>();
+    LocateRegistry.createRegistry(2001);
+    Naming.bind(jvnCoordURL, this);
 	}
 
   /**
@@ -38,8 +47,7 @@ public class JvnCoordImpl
   **/
   public int jvnGetObjectId()
   throws java.rmi.RemoteException,jvn.JvnException {
-    // to be completed 
-    return 0;
+    return (int) serialVersionUID++;
   }
   
   /**
@@ -52,7 +60,10 @@ public class JvnCoordImpl
   **/
   public void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js)
   throws java.rmi.RemoteException,jvn.JvnException{
-    // to be completed 
+    if(!objetsPartages.containsKey(js)){
+      objetsPartages.put(js, new HashMap<String,JvnObjectImpl>());
+    }
+    objetsPartages.get(js).put(jon, (JvnObjectImpl) jo);
   }
   
   /**
@@ -63,8 +74,8 @@ public class JvnCoordImpl
   **/
   public JvnObject jvnLookupObject(String jon, JvnRemoteServer js)
   throws java.rmi.RemoteException,jvn.JvnException{
-    // to be completed 
-    return null;
+    HashMap<String,JvnObjectImpl> objets = objetsPartages.get(js);
+    return objets.get(jon);
   }
   
   /**
@@ -100,7 +111,7 @@ public class JvnCoordImpl
 	**/
     public void jvnTerminate(JvnRemoteServer js)
 	 throws java.rmi.RemoteException, JvnException {
-	 // to be completed
+      objetsPartages.remove(js);
     }
 }
 
