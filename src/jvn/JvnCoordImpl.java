@@ -25,6 +25,8 @@ public class JvnCoordImpl
 	 * 
 	 */
 	private static long serialVersionUID = 1L;
+  
+  private int uniqueId = 1;
 
   /**
    * - JvnRemoteServer 1 : ["nomObjet1" : objet1, "nomObjet2" : objet2, ...]
@@ -32,6 +34,8 @@ public class JvnCoordImpl
    * - JvnRemoteServer n : ["nomObjet1" : objet1, "nomObjet2" : objet2, ...]
    */
   private HashMap<JvnRemoteServer,HashMap<String,JvnObjectImpl>> objetsPartages;
+  private HashMap<Integer,HashMap<JvnRemoteServer,EtatVerrou>> etatsVerrous;
+  private HashMap<Integer,String> idNoms;
 
   private String jvnCoordURL = "//localhost:2001/JvnCoordinatorLink";
 
@@ -53,9 +57,17 @@ public class JvnCoordImpl
   **/
   public int jvnGetObjectId()
   throws java.rmi.RemoteException,jvn.JvnException {
-    return (int) serialVersionUID++;
+    return uniqueId++;
   }
   
+  public void updateEtatVerrou(int id, JvnRemoteServer js, EtatVerrou etatVerrou){
+    if(!etatsVerrous.containsKey(id)){
+      etatsVerrous.put(id, new HashMap<JvnRemoteServer,EtatVerrou>());
+    }
+
+    etatsVerrous.get(id).put(js, etatVerrou);
+  }
+
   /**
   * Associate a symbolic name with a JVN object
   * @param jon : the JVN object name
@@ -75,6 +87,11 @@ public class JvnCoordImpl
     }
 
     objetsPartages.get(js).put(jon, (JvnObjectImpl) jo);
+    
+    // sauvegarder l'id et son nom
+    if(!idNoms.containsKey(jo.jvnGetObjectId())) {
+      idNoms.put(jo.jvnGetObjectId(), jon);
+    }
   }
   
   /**
@@ -103,7 +120,13 @@ public class JvnCoordImpl
   **/
    public Serializable jvnLockRead(int joi, JvnRemoteServer js)
    throws java.rmi.RemoteException, JvnException{
-    return null;
+
+    this.updateEtatVerrou(joi, js, EtatVerrou.R);
+
+    HashMap<String,JvnObjectImpl> objets = objetsPartages.get(js);
+    JvnObjectImpl jvnObject = objets.get(idNoms.get(joi));
+
+    return jvnObject;
    }
 
   /**
@@ -115,8 +138,33 @@ public class JvnCoordImpl
   **/
    public Serializable jvnLockWrite(int joi, JvnRemoteServer js)
    throws java.rmi.RemoteException, JvnException{
-    // to be completed
-    return null;
+    if(this.etatsVerrous.get(joi).values().contains(EtatVerrou.W)){
+      try {
+        wait(); //no
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    }
+    this.updateEtatVerrou(joi, js, EtatVerrou.W);
+
+    // penser à appeler invalidate sur celui qui possède le verrou
+
+    JvnObjectImpl jvnObject = null;
+
+    HashMap<String,JvnObjectImpl> objets = objetsPartages.get(js);
+    for (JvnObjectImpl objet : objets.values()) {
+      if(objet.jvnGetObjectId() == joi){
+        jvnObject = objet;
+        jvnObject.jvnLockWrite();
+        break;
+      }
+    }
+
+    if (jvnObject == null) {
+      throw new JvnException("Objet inexistant");
+    }
+
+    return jvnObject;
    }
 
 	/**

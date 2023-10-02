@@ -76,10 +76,6 @@ public class JvnServerImpl
 	**/
 	public  JvnObject jvnCreateObject(Serializable o)
 	throws jvn.JvnException { 
-
-		//TODO : poser un verrou en ecriture sur l'objet en cours de création
-		//TODO : penser aux verrous en général
-
 		JvnObjectImpl jo = (JvnObjectImpl) o;
 		try {
 			jo.setUniqueId(jvnCoord.jvnGetObjectId());
@@ -98,7 +94,7 @@ public class JvnServerImpl
 	public  void jvnRegisterObject(String jon, JvnObject jo)
 	throws jvn.JvnException {
 		try {
-			jvnCoord.jvnRegisterObject(jon, jo, this);
+			jvnCoord.jvnRegisterObject(jon, jo, js);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

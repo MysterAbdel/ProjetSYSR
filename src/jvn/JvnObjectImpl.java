@@ -8,9 +8,6 @@ public class JvnObjectImpl implements JvnObject, Remote{
     private long id;
     private Serializable objectState;
 
-    enum EtatVerrou {
-        NL, RC, WC, R, W, RWC
-    };
 
     /* << source : diapos >>
         ❖ NL   : no lock
@@ -20,9 +17,9 @@ public class JvnObjectImpl implements JvnObject, Remote{
         ❖ W    : write lock taken
         ❖ RWC  : write lock cached & read taken
      */
-    
-    private EtatVerrou etatVerrou;
 
+    private EtatVerrou etatVerrou;
+    
     public JvnObjectImpl(){
         this.etatVerrou = EtatVerrou.NL;
         this.objectState = this;
@@ -52,10 +49,7 @@ public class JvnObjectImpl implements JvnObject, Remote{
 
     @Override
     public void jvnInvalidateReader() throws JvnException {
-        // TODO Auto-generated method stub
-
-        // IDEES
-        
+        // TODO Auto-generated method stub        
     }
 
     @Override
@@ -72,20 +66,18 @@ public class JvnObjectImpl implements JvnObject, Remote{
 
     @Override
     public void jvnLockRead() throws JvnException {
-        // TODO Auto-generated method stub
-        
+        this.etatVerrou = EtatVerrou.R;
     }
 
     @Override
     public void jvnLockWrite() throws JvnException {
-        // TODO Auto-generated method stub
-        
+        this.etatVerrou = EtatVerrou.W;
     }
 
     @Override
     public void jvnUnLock() throws JvnException {
-        // TODO Auto-generated method stub
-        
+        this.etatVerrou = EtatVerrou.NL;
+        notify();
     }
     
 }
