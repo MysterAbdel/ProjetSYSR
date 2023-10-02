@@ -26,7 +26,13 @@ public class JvnCoordImpl
 	 */
 	private static long serialVersionUID = 1L;
 
+  /**
+   * - JvnRemoteServer 1 : ["nomObjet1" : objet1, "nomObjet2" : objet2, ...]
+   * - [...]
+   * - JvnRemoteServer n : ["nomObjet1" : objet1, "nomObjet2" : objet2, ...]
+   */
   private HashMap<JvnRemoteServer,HashMap<String,JvnObjectImpl>> objetsPartages;
+
   private String jvnCoordURL = "//localhost:2001/JvnCoordinatorLink";
 
 /**
@@ -63,6 +69,11 @@ public class JvnCoordImpl
     if(!objetsPartages.containsKey(js)){
       objetsPartages.put(js, new HashMap<String,JvnObjectImpl>());
     }
+
+    if(objetsPartages.get(js).containsKey(jon)){
+      throw new JvnException("Objet déja existant");
+    }
+
     objetsPartages.get(js).put(jon, (JvnObjectImpl) jo);
   }
   
@@ -75,6 +86,11 @@ public class JvnCoordImpl
   public JvnObject jvnLookupObject(String jon, JvnRemoteServer js)
   throws java.rmi.RemoteException,jvn.JvnException{
     HashMap<String,JvnObjectImpl> objets = objetsPartages.get(js);
+
+    if (objets == null) {
+      throw new JvnException("Objet inexistant");
+    }
+
     return objets.get(jon);
   }
   
@@ -87,7 +103,6 @@ public class JvnCoordImpl
   **/
    public Serializable jvnLockRead(int joi, JvnRemoteServer js)
    throws java.rmi.RemoteException, JvnException{
-    // to be completed
     return null;
    }
 

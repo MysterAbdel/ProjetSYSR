@@ -53,6 +53,8 @@ public class JvnObjectImpl implements JvnObject, Remote{
     @Override
     public void jvnInvalidateReader() throws JvnException {
         // TODO Auto-generated method stub
+
+        // IDEES
         
     }
 

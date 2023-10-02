@@ -26,8 +26,10 @@ public class JvnServerImpl
 	// A JVN server is managed as a singleton 
 	private static JvnServerImpl js = null;
 
-	private JvnCoordImpl jvnCoord;
-	private String jvnCoordURL = "//localhost:2001/JvnCoordinatorLink";
+	private JvnCoordImpl jvnCoord = null;
+	private static String jvnCoordURL = "//localhost:2001/JvnCoordinatorLink";
+
+  
 
   /**
   * Default constructor
@@ -35,11 +37,7 @@ public class JvnServerImpl
   **/
 	private JvnServerImpl() throws Exception {
 		super();
-		try {
-			jvnCoord = (JvnCoordImpl) Naming.lookup(jvnCoordURL);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		jvnCoord = (JvnCoordImpl) Naming.lookup(jvnCoordURL);
 	}
 	
   /**
@@ -84,7 +82,6 @@ public class JvnServerImpl
 
 		JvnObjectImpl jo = (JvnObjectImpl) o;
 		try {
-			jo = (JvnObjectImpl) o;
 			jo.setUniqueId(jvnCoord.jvnGetObjectId());
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -132,9 +129,13 @@ public class JvnServerImpl
 	**/
    public Serializable jvnLockRead(int joi)
 	 throws JvnException {
-		// to be completed 
-		return null;
-
+		Serializable o = null;
+		try {
+			o = jvnCoord.jvnLockRead(joi, js);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return o;
 	}	
 	/**
 	* Get a Write lock on a JVN object 
@@ -144,8 +145,13 @@ public class JvnServerImpl
 	**/
    public Serializable jvnLockWrite(int joi)
 	 throws JvnException {
-		// to be completed 
-		return null;
+		Serializable o = null;
+		try {
+			o = jvnCoord.jvnLockWrite(joi, js);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return o;
 	}	
 
 	
@@ -158,8 +164,13 @@ public class JvnServerImpl
 	**/
   public void jvnInvalidateReader(int joi)
 	throws java.rmi.RemoteException,jvn.JvnException {
-		// to be completed 
-	};
+		try {
+			JvnObject jvnObject = jvnCoord.jvnLookupObject(jvnCoordURL, js);
+			jvnObject.jvnInvalidateReader();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 	    
 	/**
 	* Invalidate the Write lock of the JVN object identified by id 
@@ -169,9 +180,15 @@ public class JvnServerImpl
 	**/
   public Serializable jvnInvalidateWriter(int joi)
 	throws java.rmi.RemoteException,jvn.JvnException { 
-		// to be completed 
-		return null;
-	};
+		Serializable o = null;
+		try {
+			JvnObject jvnObject = jvnCoord.jvnLookupObject(jvnCoordURL, js);
+			o = jvnObject.jvnInvalidateWriter();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return o;
+	}
 	
 	/**
 	* Reduce the Write lock of the JVN object identified by id 
@@ -181,9 +198,15 @@ public class JvnServerImpl
 	**/
    public Serializable jvnInvalidateWriterForReader(int joi)
 	 throws java.rmi.RemoteException,jvn.JvnException { 
-		// to be completed 
-		return null;
-	 };
+		Serializable o = null;
+		try {
+			JvnObject jvnObject = jvnCoord.jvnLookupObject(jvnCoordURL, js);
+			o = jvnObject.jvnInvalidateWriterForReader();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return o;
+	 }
 
 }
 
