@@ -26,7 +26,7 @@ public class JvnServerImpl
 	// A JVN server is managed as a singleton 
 	private static JvnServerImpl js = null;
 
-	private JvnCoordImpl jvnCoord = null;
+	private JvnRemoteCoord jvnCoord= null;
 	private static String jvnCoordURL = "//localhost:2001/JvnCoordinatorLink";
 
   
@@ -37,7 +37,11 @@ public class JvnServerImpl
   **/
 	private JvnServerImpl() throws Exception {
 		super();
-		jvnCoord = (JvnCoordImpl) Naming.lookup(jvnCoordURL);
+		try {
+			jvnCoord = (JvnRemoteCoord) Naming.lookup(jvnCoordURL);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
   /**
@@ -76,13 +80,17 @@ public class JvnServerImpl
 	**/
 	public  JvnObject jvnCreateObject(Serializable o)
 	throws jvn.JvnException { 
-		JvnObjectImpl jo = (JvnObjectImpl) o;
+		System.out.println("jvnCreateObject-try");
 		try {
-			jo.setUniqueId(jvnCoord.jvnGetObjectId());
+			System.out.println("JVS - jvnCreateObject");
+			int uniqueId = jvnCoord.jvnGetObjectId();
+			System.out.println("jvnCreateObject-uniqueId : "+uniqueId);
+			JvnObject jo = new JvnObjectImpl(o,uniqueId);
+			return jo;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		return (JvnObject) jo; 
+		return null; 
 	}
 	
 	/**
@@ -94,6 +102,7 @@ public class JvnServerImpl
 	public  void jvnRegisterObject(String jon, JvnObject jo)
 	throws jvn.JvnException {
 		try {
+			System.out.println("JVS - jvnRegisterObject");
 			jvnCoord.jvnRegisterObject(jon, jo, js);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -110,9 +119,10 @@ public class JvnServerImpl
 	throws jvn.JvnException {
 		JvnObject jo = null;
 		try {
-			jo = jvnCoord.jvnLookupObject(jon, js);
+			System.out.println("JVS - jvnLookupObject");
+		 	jo = jvnCoord.jvnLookupObject(jon, js);
 		} catch (Exception e) {
-			e.printStackTrace();
+		 	e.printStackTrace();
 		}
 		return jo;
 	}	
@@ -127,6 +137,7 @@ public class JvnServerImpl
 	 throws JvnException {
 		Serializable o = null;
 		try {
+			System.out.println("JVS - jvnLockRead sur "+joi);
 			o = jvnCoord.jvnLockRead(joi, js);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -143,6 +154,7 @@ public class JvnServerImpl
 	 throws JvnException {
 		Serializable o = null;
 		try {
+			System.out.println("JVS - jvnLockWrite sur "+joi);
 			o = jvnCoord.jvnLockWrite(joi, js);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -162,6 +174,7 @@ public class JvnServerImpl
 	throws java.rmi.RemoteException,jvn.JvnException {
 		try {
 			JvnObject jvnObject = jvnCoord.jvnLookupObject(jvnCoordURL, js);
+			System.out.println("JVS - jvnInvalidateReader sur "+joi);
 			jvnObject.jvnInvalidateReader();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -179,6 +192,7 @@ public class JvnServerImpl
 		Serializable o = null;
 		try {
 			JvnObject jvnObject = jvnCoord.jvnLookupObject(jvnCoordURL, js);
+			System.out.println("JVS - jvnInvalidateWriter sur "+joi);
 			o = jvnObject.jvnInvalidateWriter();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -197,6 +211,7 @@ public class JvnServerImpl
 		Serializable o = null;
 		try {
 			JvnObject jvnObject = jvnCoord.jvnLookupObject(jvnCoordURL, js);
+			System.out.println("JVS - jvnInvalidateWriterForReader sur "+joi);
 			o = jvnObject.jvnInvalidateWriterForReader();
 		} catch (Exception e) {
 			e.printStackTrace();

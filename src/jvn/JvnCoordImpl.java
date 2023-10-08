@@ -45,10 +45,22 @@ public class JvnCoordImpl
   **/
 	private JvnCoordImpl() throws Exception {
     super();
+    
     objetsPartages = new HashMap<JvnRemoteServer,HashMap<String,JvnObjectImpl>>();
+    etatsVerrous = new HashMap<Integer,HashMap<JvnRemoteServer,EtatVerrou>>();
+    idNoms = new HashMap<Integer,String>();
+
     LocateRegistry.createRegistry(2001);
     Naming.bind(jvnCoordURL, this);
 	}
+
+  public static void main(String[] args) {
+    try {
+      new JvnCoordImpl();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
 
   /**
   *  Allocate a NEW JVN object id (usually allocated to a 
@@ -78,6 +90,9 @@ public class JvnCoordImpl
   **/
   public void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js)
   throws java.rmi.RemoteException,jvn.JvnException{
+
+    System.out.println("JVC - jvnRegisterObject de nom "+ jon);
+    
     if(!objetsPartages.containsKey(js)){
       objetsPartages.put(js, new HashMap<String,JvnObjectImpl>());
     }
@@ -102,13 +117,15 @@ public class JvnCoordImpl
   **/
   public JvnObject jvnLookupObject(String jon, JvnRemoteServer js)
   throws java.rmi.RemoteException,jvn.JvnException{
-    HashMap<String,JvnObjectImpl> objets = objetsPartages.get(js);
+    System.out.println("JVC - jvnLookupObject de nom "+ jon);
 
-    if (objets == null) {
-      throw new JvnException("Objet inexistant");
+    if(objetsPartages.containsKey(js) && objetsPartages.get(js).containsKey(jon)){
+      System.out.println("JVC - jvnLookupObject : objet trouvé");
+      return objetsPartages.get(js).get(jon);
     }
 
-    return objets.get(jon);
+    System.out.println("JVC - jvnLookupObject : objet non trouvé");
+    return null;
   }
   
   /**
@@ -120,13 +137,9 @@ public class JvnCoordImpl
   **/
    public Serializable jvnLockRead(int joi, JvnRemoteServer js)
    throws java.rmi.RemoteException, JvnException{
+    Serializable objectState = null;
 
-    this.updateEtatVerrou(joi, js, EtatVerrou.R);
-
-    HashMap<String,JvnObjectImpl> objets = objetsPartages.get(js);
-    JvnObjectImpl jvnObject = objets.get(idNoms.get(joi));
-
-    return jvnObject;
+    return objectState;
    }
 
   /**
@@ -138,33 +151,10 @@ public class JvnCoordImpl
   **/
    public Serializable jvnLockWrite(int joi, JvnRemoteServer js)
    throws java.rmi.RemoteException, JvnException{
-    if(this.etatsVerrous.get(joi).values().contains(EtatVerrou.W)){
-      try {
-        wait(); //no
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      }
-    }
-    this.updateEtatVerrou(joi, js, EtatVerrou.W);
+    System.out.println("JVC - jvnLockWrite sur + " + joi);
 
-    // penser à appeler invalidate sur celui qui possède le verrou
-
-    JvnObjectImpl jvnObject = null;
-
-    HashMap<String,JvnObjectImpl> objets = objetsPartages.get(js);
-    for (JvnObjectImpl objet : objets.values()) {
-      if(objet.jvnGetObjectId() == joi){
-        jvnObject = objet;
-        jvnObject.jvnLockWrite();
-        break;
-      }
-    }
-
-    if (jvnObject == null) {
-      throw new JvnException("Objet inexistant");
-    }
-
-    return jvnObject;
+    Serializable objectState = null;
+    return objectState;
    }
 
 	/**
