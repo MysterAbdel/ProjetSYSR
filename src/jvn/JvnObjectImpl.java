@@ -27,6 +27,11 @@ public class JvnObjectImpl implements JvnObject, Remote{
         setEtatVerrou(EtatVerrou.NL);
         setObjectState(o);
         setUniqueId(id);
+        try {
+            jvnLockWrite();
+        } catch (JvnException e) {
+            e.printStackTrace();
+        }
     }
 
     public void setUniqueId(long id){
@@ -60,15 +65,16 @@ public class JvnObjectImpl implements JvnObject, Remote{
 
         System.out.println("IMPL - jvnInvalidateReader sur " + this.id);
 
-        if (this.etatVerrou == EtatVerrou.R){
+        while(this.etatVerrou == EtatVerrou.R || this.etatVerrou == EtatVerrou.RWC) {
             try {
                 System.out.println("mise en attente sur " + this.id);
                 wait();
-                this.etatVerrou = EtatVerrou.RC;
+                this.etatVerrou = EtatVerrou.NL;
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        }  
+        }
+
     }
 
     @Override
@@ -76,7 +82,7 @@ public class JvnObjectImpl implements JvnObject, Remote{
         
         System.out.println("IMPL - jvnInvalidateWriter sur " + this.id);
 
-        if (this.etatVerrou == EtatVerrou.W){
+        while(this.etatVerrou == EtatVerrou.W) {
             try {
                 System.out.println("mise en attente sur " + this.id);
                 wait();
@@ -85,7 +91,8 @@ public class JvnObjectImpl implements JvnObject, Remote{
                 e.printStackTrace();
             }
         }
-        return objectState;
+
+        return this.objectState;
     }
 
     @Override
@@ -93,15 +100,34 @@ public class JvnObjectImpl implements JvnObject, Remote{
         
         System.out.println("IMPL - jvnInvalidateWriterForReader sur " + this.id);
 
-        if (this.etatVerrou == EtatVerrou.W){
-            try {
-                System.out.println("mise en attente sur " + this.id);
-                wait();
-                this.etatVerrou = EtatVerrou.NL;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+        switch(this.etatVerrou){
+            case W :
+                while(this.etatVerrou == EtatVerrou.W) {
+                    try {
+                        System.out.println("mise en attente sur " + this.id);
+                        wait();
+
+                        this.etatVerrou = EtatVerrou.RC;
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                break;
+            case RWC :
+                while(this.etatVerrou == EtatVerrou.RWC) {
+                    try {
+                        System.out.println("mise en attente sur " + this.id);
+                        wait();
+                        this.etatVerrou = EtatVerrou.R;
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                break;
+            default :
+                throw new JvnException("Erreur : etat incompatible");
         }
+
         return objectState;
     }
 
@@ -110,17 +136,26 @@ public class JvnObjectImpl implements JvnObject, Remote{
 
         System.out.println("IMPL - jvnLockRead sur " + this.id);
 
-        if (this.etatVerrou == EtatVerrou.NL || this.etatVerrou == EtatVerrou.RC){
-            this.etatVerrou = EtatVerrou.R;
-            return;
+        switch(this.etatVerrou){
+            case NL:
+                this.etatVerrou = EtatVerrou.R;
+                break;
+            case RC:
+                this.etatVerrou = EtatVerrou.R;
+                break;
+            case WC:
+                this.etatVerrou = EtatVerrou.RWC;
+                break;
+            case R:
+                break;
+            case W:
+                break;
+            case RWC:
+                break;
+            default :
+                throw new JvnException("Erreur : etat incompatible");
         }
 
-        if (this.etatVerrou == EtatVerrou.W || this.etatVerrou == EtatVerrou.WC) {
-            this.etatVerrou = EtatVerrou.RWC;
-            return;
-        }
-
-        throw new JvnException("Erreur : etat incompatible");
     }
 
     @Override
@@ -128,18 +163,28 @@ public class JvnObjectImpl implements JvnObject, Remote{
 
         System.out.println("IMPL - jvnLockWrite sur " + this.id);
 
-        if (this.etatVerrou == EtatVerrou.NL 
-        || this.etatVerrou == EtatVerrou.RC
-        || this.etatVerrou == EtatVerrou.R
-        || this.etatVerrou == EtatVerrou.WC
-        || this.etatVerrou == EtatVerrou.RWC){
-
-            
-            this.etatVerrou = EtatVerrou.W; 
-            return;
+        synchronized(this){
+            switch(this.etatVerrou){
+            case NL:
+                this.etatVerrou = EtatVerrou.W;
+                break;
+            case RC:
+                this.etatVerrou = EtatVerrou.W;
+                break;
+            case WC:
+                this.etatVerrou = EtatVerrou.W;
+                break;
+            case R:
+                break;
+            case W:
+                break;
+            case RWC:
+                this.etatVerrou = EtatVerrou.W;
+                break;
+            default :
+                throw new JvnException("Erreur : etat incompatible");
+            }
         }
-
-        throw new JvnException("Erreur : etat incompatible");
     }
 
     @Override
@@ -147,13 +192,29 @@ public class JvnObjectImpl implements JvnObject, Remote{
         
         System.out.println("IMPL - jvnUnLock sur " + this.id);
 
-        if (this.etatVerrou == EtatVerrou.W || this.etatVerrou == EtatVerrou.R){
-            this.etatVerrou = EtatVerrou.NL;
+        switch(this.etatVerrou){
+            case NL:
+                break;
+            case RC:
+                break;
+            case WC:
+                break;
+            case R:
+                this.etatVerrou = EtatVerrou.RC;
+                notify();
+                break;
+            case W:
+                this.etatVerrou = EtatVerrou.WC;
+                notify();
+                break;
+            case RWC:
+                this.etatVerrou = EtatVerrou.WC;
+                notify();
+                break;
+            default :
+                throw new JvnException("Erreur : etat incompatible");
         }
-        if (this.etatVerrou == EtatVerrou.NL){
-            return;
-        }
-        notify();
+
     }
 
     

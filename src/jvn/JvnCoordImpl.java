@@ -13,6 +13,7 @@ import java.io.Serializable;
 import java.rmi.Naming;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 
@@ -33,9 +34,10 @@ public class JvnCoordImpl
    * - [...]
    * - JvnRemoteServer n : ["nomObjet1" : objet1, "nomObjet2" : objet2, ...]
    */
-  private HashMap<JvnRemoteServer,HashMap<String,JvnObjectImpl>> objetsPartages;
-  private HashMap<Integer,HashMap<JvnRemoteServer,EtatVerrou>> etatsVerrous;
+  private HashMap<JvnRemoteServer,ArrayList<JvnObjectImpl>> objetsPartages;
+  private HashMap<Integer,ArrayList<JvnRemoteServer>> etatsVerrous;
   private HashMap<Integer,String> idNoms;
+  private HashMap<Integer,JvnObjectImpl> idObjects;
 
   private String jvnCoordURL = "//localhost:2001/JvnCoordinatorLink";
 
@@ -46,9 +48,10 @@ public class JvnCoordImpl
 	private JvnCoordImpl() throws Exception {
     super();
     
-    objetsPartages = new HashMap<JvnRemoteServer,HashMap<String,JvnObjectImpl>>();
-    etatsVerrous = new HashMap<Integer,HashMap<JvnRemoteServer,EtatVerrou>>();
+    objetsPartages = new HashMap<JvnRemoteServer,ArrayList<JvnObjectImpl>>();
+    etatsVerrous = new HashMap<Integer,ArrayList<JvnRemoteServer>>();
     idNoms = new HashMap<Integer,String>();
+    idObjects = new HashMap<Integer,JvnObjectImpl>();
 
     LocateRegistry.createRegistry(2001);
     Naming.bind(jvnCoordURL, this);
@@ -72,13 +75,13 @@ public class JvnCoordImpl
     return uniqueId++;
   }
   
-  public void updateEtatVerrou(int id, JvnRemoteServer js, EtatVerrou etatVerrou){
-    if(!etatsVerrous.containsKey(id)){
-      etatsVerrous.put(id, new HashMap<JvnRemoteServer,EtatVerrou>());
-    }
+  // public void updateEtatVerrou(int id, JvnRemoteServer js, EtatVerrou etatVerrou){
+  //   if(!etatsVerrous.containsKey(id)){
+  //     etatsVerrous.put(id, new HashMap<JvnRemoteServer,EtatVerrou>());
+  //   }
 
-    etatsVerrous.get(id).put(js, etatVerrou);
-  }
+  //   etatsVerrous.get(id).put(js, etatVerrou);
+  // }
 
   /**
   * Associate a symbolic name with a JVN object
@@ -94,19 +97,26 @@ public class JvnCoordImpl
     System.out.println("JVC - jvnRegisterObject de nom "+ jon);
     
     if(!objetsPartages.containsKey(js)){
-      objetsPartages.put(js, new HashMap<String,JvnObjectImpl>());
+      objetsPartages.put(js, new ArrayList<JvnObjectImpl>());
     }
 
-    if(objetsPartages.get(js).containsKey(jon)){
+
+    if(objetsPartages.get(js).contains(jo)){
       throw new JvnException("Objet déja existant");
     }
 
-    objetsPartages.get(js).put(jon, (JvnObjectImpl) jo);
+    objetsPartages.get(js).add((JvnObjectImpl) jo);
     
     // sauvegarder l'id et son nom
     if(!idNoms.containsKey(jo.jvnGetObjectId())) {
       idNoms.put(jo.jvnGetObjectId(), jon);
     }
+
+    // sauvegarder l'id et l'objet
+    if(!idObjects.containsKey(jo.jvnGetObjectId())) {
+      idObjects.put(jo.jvnGetObjectId(), (JvnObjectImpl) jo);
+    }
+
   }
   
   /**
@@ -119,11 +129,15 @@ public class JvnCoordImpl
   throws java.rmi.RemoteException,jvn.JvnException{
     System.out.println("JVC - jvnLookupObject de nom "+ jon);
 
-    if(objetsPartages.containsKey(js) && objetsPartages.get(js).containsKey(jon)){
-      System.out.println("JVC - jvnLookupObject : objet trouvé");
-      return objetsPartages.get(js).get(jon);
+    if(objetsPartages.containsKey(js)){
+      for (JvnObjectImpl jvnObject : objetsPartages.get(js)) {
+        if(idNoms.get(jvnObject.jvnGetObjectId()).equals(jon)){
+          System.out.println("JVC - jvnLookupObject : objet trouvé");
+          return jvnObject;
+        }
+      }
     }
-
+    
     System.out.println("JVC - jvnLookupObject : objet non trouvé");
     return null;
   }
@@ -137,7 +151,44 @@ public class JvnCoordImpl
   **/
    public Serializable jvnLockRead(int joi, JvnRemoteServer js)
    throws java.rmi.RemoteException, JvnException{
+
+    System.out.println("JVC - appel à LockRead");
+
     Serializable objectState = null;
+
+    // vérifier quel serveur a un verrou sur l'objet
+    if(etatsVerrous.containsKey(joi)){
+      for(JvnRemoteServer jvnRemoteServer : etatsVerrous.get(joi)){
+        if(jvnRemoteServer != js){
+          for(JvnObjectImpl jvnObjectImpl : objetsPartages.get(jvnRemoteServer)){
+            switch(jvnObjectImpl.getEtatVerrou()){
+              case R :
+                jvnRemoteServer.jvnInvalidateReader(joi);
+                objectState = jvnObjectImpl.jvnGetSharedObject();
+                break;
+              case RWC :
+                objectState = jvnRemoteServer.jvnInvalidateWriterForReader(joi);
+                break;
+              default :
+                throw new JvnException("Erreur de verrouillage");
+            }
+            break;
+          }
+          break;
+        }
+      }
+    }
+
+    idObjects.get(joi).setObjectState(objectState);
+    idObjects.get(joi).jvnLockRead();
+
+    if(!etatsVerrous.containsKey(joi)){
+      etatsVerrous.put(joi, new ArrayList<JvnRemoteServer>());
+    } 
+
+    if(!etatsVerrous.get(joi).contains(js)){
+      etatsVerrous.get(joi).add(js);
+    }
 
     return objectState;
    }
@@ -154,6 +205,41 @@ public class JvnCoordImpl
     System.out.println("JVC - jvnLockWrite sur + " + joi);
 
     Serializable objectState = null;
+
+    // vérifier quel serveur a un verrou sur l'objet
+    if(etatsVerrous.containsKey(joi)){
+      for(JvnRemoteServer jvnRemoteServer : etatsVerrous.get(joi)){
+        if(jvnRemoteServer != js){
+          for(JvnObjectImpl jvnObjectImpl : objetsPartages.get(jvnRemoteServer)){
+            switch(jvnObjectImpl.getEtatVerrou()){
+              case R :
+                jvnRemoteServer.jvnInvalidateReader(joi);
+                objectState = jvnObjectImpl.jvnGetSharedObject();
+                break;
+              case W :
+                objectState = jvnRemoteServer.jvnInvalidateWriter(joi);
+                break;
+              default :
+                throw new JvnException("Erreur de verrouillage");
+            }
+            break;
+          }
+          break;
+        }
+      }
+    }
+
+    idObjects.get(joi).setObjectState(objectState);
+    idObjects.get(joi).jvnLockWrite();
+
+    if(!etatsVerrous.containsKey(joi)){
+      etatsVerrous.put(joi, new ArrayList<JvnRemoteServer>());
+    } 
+
+    if(!etatsVerrous.get(joi).contains(js)){
+      etatsVerrous.get(joi).add(js);
+    }
+
     return objectState;
    }
 
