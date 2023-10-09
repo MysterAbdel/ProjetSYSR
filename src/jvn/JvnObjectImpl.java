@@ -61,7 +61,7 @@ public class JvnObjectImpl implements JvnObject, Remote{
     }
 
     @Override
-    public void jvnInvalidateReader() throws JvnException {
+    public synchronized void jvnInvalidateReader() throws JvnException {
 
         System.out.println("IMPL - jvnInvalidateReader sur " + this.id);
 
@@ -78,7 +78,7 @@ public class JvnObjectImpl implements JvnObject, Remote{
     }
 
     @Override
-    public Serializable jvnInvalidateWriter() throws JvnException {
+    public synchronized Serializable jvnInvalidateWriter() throws JvnException {
         
         System.out.println("IMPL - jvnInvalidateWriter sur " + this.id);
 
@@ -96,7 +96,7 @@ public class JvnObjectImpl implements JvnObject, Remote{
     }
 
     @Override
-    public Serializable jvnInvalidateWriterForReader() throws JvnException {
+    public synchronized Serializable jvnInvalidateWriterForReader() throws JvnException {
         
         System.out.println("IMPL - jvnInvalidateWriterForReader sur " + this.id);
 
@@ -132,12 +132,13 @@ public class JvnObjectImpl implements JvnObject, Remote{
     }
 
     @Override
-    public void jvnLockRead() throws JvnException {
+    public synchronized void jvnLockRead() throws JvnException {
 
         System.out.println("IMPL - jvnLockRead sur " + this.id);
 
         switch(this.etatVerrou){
             case NL:
+            //demander le verrou au srv
                 this.etatVerrou = EtatVerrou.R;
                 break;
             case RC:
@@ -159,13 +160,14 @@ public class JvnObjectImpl implements JvnObject, Remote{
     }
 
     @Override
-    public void jvnLockWrite() throws JvnException {
+    public synchronized void jvnLockWrite() throws JvnException {
 
         System.out.println("IMPL - jvnLockWrite sur " + this.id);
 
         synchronized(this){
             switch(this.etatVerrou){
             case NL:
+            //demander le verrou au srv
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case RC:
@@ -188,7 +190,7 @@ public class JvnObjectImpl implements JvnObject, Remote{
     }
 
     @Override
-    public void jvnUnLock() throws JvnException {
+    public synchronized void jvnUnLock() throws JvnException {
         
         System.out.println("IMPL - jvnUnLock sur " + this.id);
 
@@ -201,21 +203,22 @@ public class JvnObjectImpl implements JvnObject, Remote{
                 break;
             case R:
                 this.etatVerrou = EtatVerrou.RC;
-                notify();
+                //notify();
                 break;
             case W:
                 this.etatVerrou = EtatVerrou.WC;
-                notify();
+                //notify();
                 break;
             case RWC:
                 this.etatVerrou = EtatVerrou.WC;
-                notify();
+                //notify();
                 break;
             default :
                 throw new JvnException("Erreur : etat incompatible");
         }
-
+            notify();
     }
+
 
     
 }
