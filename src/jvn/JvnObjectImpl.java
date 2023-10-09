@@ -2,10 +2,11 @@ package jvn;
 
 import java.io.Serializable;
 import java.rmi.Remote;
+import static jvn.JvnServerImpl.jvnGetServer;
 
 public class JvnObjectImpl implements JvnObject, Remote{
 
-    private long id;
+    private int id;
     private Serializable objectState;
 
 
@@ -34,7 +35,7 @@ public class JvnObjectImpl implements JvnObject, Remote{
         }
     }
 
-    public void setUniqueId(long id){
+    public void setUniqueId(int id){
         this.id = id;
     }
 
@@ -138,7 +139,7 @@ public class JvnObjectImpl implements JvnObject, Remote{
 
         switch(this.etatVerrou){
             case NL:
-            //demander le verrou au srv
+                objectState = ((JvnObject) jvnGetServer().jvnLockRead(this.id)).jvnGetSharedObject();
                 this.etatVerrou = EtatVerrou.R;
                 break;
             case RC:
@@ -167,10 +168,11 @@ public class JvnObjectImpl implements JvnObject, Remote{
         synchronized(this){
             switch(this.etatVerrou){
             case NL:
-            //demander le verrou au srv
+                objectState = ((JvnObject) jvnGetServer().jvnLockRead(this.id)).jvnGetSharedObject();
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case RC:
+                objectState = ((JvnObject) jvnGetServer().jvnLockRead(this.id)).jvnGetSharedObject();
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case WC:
