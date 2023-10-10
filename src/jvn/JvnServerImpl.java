@@ -12,6 +12,7 @@ package jvn;
 import java.io.Serializable;
 import java.rmi.Naming;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.HashMap;
 
 
 
@@ -28,6 +29,8 @@ public class JvnServerImpl
 
 	private JvnRemoteCoord jvnCoord= null;
 	private static String jvnCoordURL = "//localhost:2001/JvnCoordinatorLink";
+	
+	private HashMap<Integer,JvnObject> objects;
 
   
 
@@ -42,6 +45,7 @@ public class JvnServerImpl
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		objects = new HashMap<Integer,JvnObject>();
 	}
 	
   /**
@@ -86,6 +90,7 @@ public class JvnServerImpl
 			int uniqueId = jvnCoord.jvnGetObjectId();
 			System.out.println("jvnCreateObject-uniqueId : "+uniqueId);
 			JvnObject jo = new JvnObjectImpl(o,uniqueId);
+			objects.put(jo.jvnGetObjectId(), jo);
 			return jo;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -121,6 +126,7 @@ public class JvnServerImpl
 		try {
 			System.out.println("JVS - jvnLookupObject");
 		 	jo = jvnCoord.jvnLookupObject(jon, js);
+		 	//maybe do sth
 		} catch (Exception e) {
 		 	e.printStackTrace();
 		}
