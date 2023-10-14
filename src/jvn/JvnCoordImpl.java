@@ -9,8 +9,12 @@
 
 package jvn;
 
-import java.rmi.server.UnicastRemoteObject;
 import java.io.Serializable;
+import java.rmi.Naming;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.server.UnicastRemoteObject;
+import java.util.HashMap;
+import java.util.List;
 
 
 public class JvnCoordImpl 	
@@ -23,13 +27,47 @@ public class JvnCoordImpl
 	 */
 	private static final long serialVersionUID = 1L;
 
+  // Url 
+  private String jvnCoordURL = "//localhost:2001/JvnCoord";
+  // Compteur
+  private int compteurIdUnique = 0;
+
+  // Hashmap Nom/Id
+  private HashMap<String, Integer> mapNomId;
+  // Hashmap Id/Object
+  private HashMap<Integer, JvnObject> mapIdObject;
+  
+  // Hashmap Id/Liste_serveurs_ayant_le_lock_en_lecture
+  private HashMap<Integer, List<JvnRemoteServer>> mapIdListeServeursLecture;
+
+  // Hashmap Id/Serveur_ayant_le_lock_en_ecriture
+  private HashMap<Integer, JvnRemoteServer> mapIdServeurEcriture;
+
+  
 /**
   * Default constructor
   * @throws JvnException
   **/
 	private JvnCoordImpl() throws Exception {
-		// to be completed
+    super();
+
+    mapNomId = new HashMap<String, Integer>();
+    mapIdObject = new HashMap<Integer, JvnObject>();
+    mapIdListeServeursLecture = new HashMap<Integer, List<JvnRemoteServer>>();
+    mapIdServeurEcriture = new HashMap<Integer, JvnRemoteServer>();
+
+    LocateRegistry.createRegistry(2001);
+    Naming.bind(jvnCoordURL, this);
 	}
+
+  public static void main(String[] args) {
+    try {
+      new JvnCoordImpl();
+      System.out.println("JvnCoordImpl ready");
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
 
   /**
   *  Allocate a NEW JVN object id (usually allocated to a 
@@ -38,8 +76,7 @@ public class JvnCoordImpl
   **/
   public int jvnGetObjectId()
   throws java.rmi.RemoteException,jvn.JvnException {
-    // to be completed 
-    return 0;
+    return compteurIdUnique++;
   }
   
   /**
@@ -52,7 +89,16 @@ public class JvnCoordImpl
   **/
   public void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js)
   throws java.rmi.RemoteException,jvn.JvnException{
-    // to be completed 
+    System.out.println("JVC - jvnRegisterObject de nom " + jon + " et d'id " + jo.jvnGetObjectId());
+
+    if (mapNomId.containsKey(jon)) {
+      System.out.println("JVC - jvnRegisterObject : le nom " + jon + " est déjà utilisé");
+      throw new JvnException("Le nom " + jon + " est déjà utilisé");
+    }
+
+    mapNomId.put(jon, jo.jvnGetObjectId());
+    mapIdObject.put(jo.jvnGetObjectId(), jo);
+    mapIdServeurEcriture.put(jo.jvnGetObjectId(), js);
   }
   
   /**
@@ -63,8 +109,14 @@ public class JvnCoordImpl
   **/
   public JvnObject jvnLookupObject(String jon, JvnRemoteServer js)
   throws java.rmi.RemoteException,jvn.JvnException{
-    // to be completed 
-    return null;
+    
+    if (!mapNomId.containsKey(jon)) {
+      System.out.println("JVC - jvnLookupObject : le nom " + jon + " n'existe pas");
+      throw new JvnException("Le nom " + jon + " n'existe pas");
+    }
+
+    int id = mapNomId.get(jon);
+    return mapIdObject.get(id);
   }
   
   /**
