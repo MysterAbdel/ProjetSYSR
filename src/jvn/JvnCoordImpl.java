@@ -128,8 +128,39 @@ public class JvnCoordImpl
   **/
    public Serializable jvnLockRead(int joi, JvnRemoteServer js)
    throws java.rmi.RemoteException, JvnException{
-    // to be completed
-    return null;
+
+    /**
+     * // Hashmap Nom/Id
+        private HashMap<String, Integer> mapNomId;
+        // Hashmap Id/Object
+        private HashMap<Integer, JvnObject> mapIdObject;
+        
+        // Hashmap Id/Liste_serveurs_ayant_le_lock_en_lecture
+        private HashMap<Integer, List<JvnRemoteServer>> mapIdListeServeursLecture;
+
+        // Hashmap Id/Serveur_ayant_le_lock_en_ecriture
+        private HashMap<Integer, JvnRemoteServer> mapIdServeurEcriture;
+     */
+
+    JvnObject jo = mapIdObject.get(joi);
+
+    boolean possedeVerrouEnLecture = mapIdListeServeursLecture.get(joi).contains(js);
+    boolean possedeVerrouEnEcriture = mapIdServeurEcriture.get(joi).equals(js);
+
+    
+    if (possedeVerrouEnEcriture){
+      JvnRemoteServer jServer = mapIdServeurEcriture.get(joi);
+      Serializable o = jServer.jvnInvalidateWriterForReader(joi);
+      ((JvnObjectImpl) jo).jvnSetSharedObject(o);
+      mapIdListeServeursLecture.get(joi).add(jServer);
+      mapIdObject.put(joi, jo);
+    }
+
+    if (!possedeVerrouEnLecture){
+      mapIdListeServeursLecture.get(joi).add(js);
+    }
+
+    return jo;
    }
 
   /**
@@ -141,8 +172,42 @@ public class JvnCoordImpl
   **/
    public Serializable jvnLockWrite(int joi, JvnRemoteServer js)
    throws java.rmi.RemoteException, JvnException{
-    // to be completed
-    return null;
+
+    /**
+     * // Hashmap Nom/Id
+        private HashMap<String, Integer> mapNomId;
+        // Hashmap Id/Object
+        private HashMap<Integer, JvnObject> mapIdObject;
+        
+        // Hashmap Id/Liste_serveurs_ayant_le_lock_en_lecture
+        private HashMap<Integer, List<JvnRemoteServer>> mapIdListeServeursLecture;
+
+        // Hashmap Id/Serveur_ayant_le_lock_en_ecriture
+        private HashMap<Integer, JvnRemoteServer> mapIdServeurEcriture;
+     */
+
+    JvnObject jo = mapIdObject.get(joi);
+
+    boolean possedeVerrouEnLecture = mapIdListeServeursLecture.get(joi).contains(js);
+    boolean possedeVerrouEnEcriture = mapIdServeurEcriture.get(joi).equals(js);
+
+    
+    if (!possedeVerrouEnEcriture){
+        JvnRemoteServer jServer = mapIdServeurEcriture.get(joi);
+        Serializable o = jServer.jvnInvalidateWriter(joi);
+        ((JvnObjectImpl) jo).jvnSetSharedObject(o);
+        mapIdServeurEcriture.put(joi, js);
+        mapIdObject.put(joi, jo);
+    }
+
+    for (JvnRemoteServer jServer : mapIdListeServeursLecture.get(joi)) {
+      if (!jServer.equals(js)){
+        jServer.jvnInvalidateReader(joi);
+        mapIdListeServeursLecture.get(joi).remove(jServer);
+      }
+    }
+
+    return jo;
    }
 
 	/**
