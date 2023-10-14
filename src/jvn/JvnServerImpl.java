@@ -12,6 +12,7 @@ package jvn;
 import java.io.Serializable;
 import java.rmi.Naming;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.HashMap;
 
 
 
@@ -26,9 +27,11 @@ public class JvnServerImpl
 	// A JVN server is managed as a singleton 
 	private static JvnServerImpl js = null;
 
-	private JvnRemoteCoord jvnCoord= null;
-	private static String jvnCoordURL = "//localhost:2001/JvnCoordinatorLink";
+	private JvnRemoteCoord jvnCoord = null;
 
+	private String jvnCoordURL = "//localhost:2001/JvnCoordinatorLink";
+	
+	private HashMap<Integer,JvnObject> jvnObjects;
   
 
   /**
@@ -39,6 +42,7 @@ public class JvnServerImpl
 		super();
 		try {
 			jvnCoord = (JvnRemoteCoord) Naming.lookup(jvnCoordURL);
+			jvnObjects = new HashMap<Integer,JvnObject>();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -84,8 +88,12 @@ public class JvnServerImpl
 		try {
 			System.out.println("JVS - jvnCreateObject");
 			int uniqueId = jvnCoord.jvnGetObjectId();
-			System.out.println("jvnCreateObject-uniqueId : "+uniqueId);
+
+			System.out.println("JVS - uniqueId : "+uniqueId);
 			JvnObject jo = new JvnObjectImpl(o,uniqueId);
+			
+			System.out.println("JVS - sauvegarde locale");
+			this.jvnObjects.put(uniqueId, jo); // local save
 			return jo;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -103,7 +111,9 @@ public class JvnServerImpl
 	throws jvn.JvnException {
 		try {
 			System.out.println("JVS - jvnRegisterObject");
-			jvnCoord.jvnRegisterObject(jon, jo, js);
+			jvnCoord.jvnRegisterObject(jon, jo, js); // coord save
+
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -121,6 +131,7 @@ public class JvnServerImpl
 		try {
 			System.out.println("JVS - jvnLookupObject");
 		 	jo = jvnCoord.jvnLookupObject(jon, js);
+			if (jo != null) this.jvnObjects.put(jo.jvnGetObjectId(), jo);
 		} catch (Exception e) {
 		 	e.printStackTrace();
 		}
@@ -133,7 +144,7 @@ public class JvnServerImpl
 	* @return the current JVN object state
 	* @throws  JvnException
 	**/
-   public Serializable jvnLockRead(int joi)
+   public synchronized Serializable jvnLockRead(int joi)
 	 throws JvnException {
 		Serializable o = null;
 		try {
@@ -150,7 +161,7 @@ public class JvnServerImpl
 	* @return the current JVN object state
 	* @throws  JvnException
 	**/
-   public Serializable jvnLockWrite(int joi)
+   public synchronized Serializable jvnLockWrite(int joi)
 	 throws JvnException {
 		Serializable o = null;
 		try {
@@ -170,15 +181,10 @@ public class JvnServerImpl
 	* @return void
 	* @throws java.rmi.RemoteException,JvnException
 	**/
-  public void jvnInvalidateReader(int joi)
+  public synchronized void jvnInvalidateReader(int joi)
 	throws java.rmi.RemoteException,jvn.JvnException {
-		try {
-			JvnObject jvnObject = jvnCoord.jvnLookupObject(jvnCoordURL, js);
-			System.out.println("JVS - jvnInvalidateReader sur "+joi);
-			jvnObject.jvnInvalidateReader();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		System.out.println("JVS - jvnInvalidateReader sur "+joi);
+		this.jvnObjects.get(joi).jvnInvalidateReader();
 	}
 	    
 	/**
@@ -187,17 +193,10 @@ public class JvnServerImpl
 	* @return the current JVN object state
 	* @throws java.rmi.RemoteException,JvnException
 	**/
-  public Serializable jvnInvalidateWriter(int joi)
+  public synchronized Serializable jvnInvalidateWriter(int joi)
 	throws java.rmi.RemoteException,jvn.JvnException { 
-		Serializable o = null;
-		try {
-			JvnObject jvnObject = jvnCoord.jvnLookupObject(jvnCoordURL, js);
-			System.out.println("JVS - jvnInvalidateWriter sur "+joi);
-			o = jvnObject.jvnInvalidateWriter();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return o;
+		System.out.println("JVS - jvnInvalidateWriter sur "+joi);
+		return this.jvnObjects.get(joi).jvnInvalidateWriter();
 	}
 	
 	/**
@@ -206,17 +205,10 @@ public class JvnServerImpl
 	* @return the current JVN object state
 	* @throws java.rmi.RemoteException,JvnException
 	**/
-   public Serializable jvnInvalidateWriterForReader(int joi)
+   public synchronized Serializable jvnInvalidateWriterForReader(int joi)
 	 throws java.rmi.RemoteException,jvn.JvnException { 
-		Serializable o = null;
-		try {
-			JvnObject jvnObject = jvnCoord.jvnLookupObject(jvnCoordURL, js);
-			System.out.println("JVS - jvnInvalidateWriterForReader sur "+joi);
-			o = jvnObject.jvnInvalidateWriterForReader();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return o;
+		System.out.println("JVS - jvnInvalidateWriterForReader sur "+joi);
+		return this.jvnObjects.get(joi).jvnInvalidateWriterForReader();
 	 }
 
 }

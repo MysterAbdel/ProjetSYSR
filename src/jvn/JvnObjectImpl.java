@@ -25,14 +25,9 @@ public class JvnObjectImpl implements JvnObject, Remote{
     
     public JvnObjectImpl(Serializable o, int id){
         System.out.println("IMPL - Création d'un objet JvnObjectImpl avec id : " + id);
-        setEtatVerrou(EtatVerrou.NL);
+        setEtatVerrou(EtatVerrou.W);
         setObjectState(o);
         setUniqueId(id);
-        try {
-            jvnLockWrite();
-        } catch (JvnException e) {
-            e.printStackTrace();
-        }
     }
 
     public void setUniqueId(int id){
@@ -57,7 +52,7 @@ public class JvnObjectImpl implements JvnObject, Remote{
     }
 
     @Override
-    public Serializable jvnGetSharedObject() throws JvnException {
+    public synchronized Serializable jvnGetSharedObject() throws JvnException {
         return this.objectState;
     }
 
@@ -70,11 +65,11 @@ public class JvnObjectImpl implements JvnObject, Remote{
             try {
                 System.out.println("mise en attente sur " + this.id);
                 wait();
-                this.etatVerrou = EtatVerrou.NL;
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
+        this.etatVerrou = EtatVerrou.NL;
 
     }
 
@@ -87,12 +82,12 @@ public class JvnObjectImpl implements JvnObject, Remote{
             try {
                 System.out.println("mise en attente sur " + this.id);
                 wait();
-                this.etatVerrou = EtatVerrou.NL;
+                
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-
+        this.etatVerrou = EtatVerrou.NL;
         return this.objectState;
     }
 
@@ -107,11 +102,10 @@ public class JvnObjectImpl implements JvnObject, Remote{
                     try {
                         System.out.println("mise en attente sur " + this.id);
                         wait();
-
-                        this.etatVerrou = EtatVerrou.RC;
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
+                    this.etatVerrou = EtatVerrou.RC;
                 }
                 break;
             case RWC :
@@ -119,10 +113,11 @@ public class JvnObjectImpl implements JvnObject, Remote{
                     try {
                         System.out.println("mise en attente sur " + this.id);
                         wait();
-                        this.etatVerrou = EtatVerrou.R;
+                        
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
+                    this.etatVerrou = EtatVerrou.R;
                 }
                 break;
             default :
@@ -136,16 +131,18 @@ public class JvnObjectImpl implements JvnObject, Remote{
     public synchronized void jvnLockRead() throws JvnException {
 
         System.out.println("IMPL - jvnLockRead sur " + this.id);
-
+        System.out.println("---- IMPL -  Etat verrou avant LockRead : " + this.etatVerrou + " ----");
+        
         switch(this.etatVerrou){
             case NL:
-                objectState = ((JvnObject) jvnGetServer().jvnLockRead(this.id)).jvnGetSharedObject();
+                objectState = jvnGetServer().jvnLockRead(this.id);
                 this.etatVerrou = EtatVerrou.R;
                 break;
             case RC:
                 this.etatVerrou = EtatVerrou.R;
                 break;
             case WC:
+                objectState = jvnGetServer().jvnLockRead(this.id);
                 this.etatVerrou = EtatVerrou.RWC;
                 break;
             case R:
@@ -153,10 +150,13 @@ public class JvnObjectImpl implements JvnObject, Remote{
             case W:
                 break;
             case RWC:
+                
                 break;
             default :
                 throw new JvnException("Erreur : etat incompatible");
         }
+
+        System.out.println("---- IMPL -  Etat verrou après LockRead : " + this.etatVerrou + " ----");
 
     }
 
@@ -164,21 +164,23 @@ public class JvnObjectImpl implements JvnObject, Remote{
     public synchronized void jvnLockWrite() throws JvnException {
 
         System.out.println("IMPL - jvnLockWrite sur " + this.id);
-
+        System.out.println("---- IMPL -  Etat verrou avant LockWrite : " + this.etatVerrou + " ----");
+        
         synchronized(this){
             switch(this.etatVerrou){
             case NL:
-                objectState = ((JvnObject) jvnGetServer().jvnLockRead(this.id)).jvnGetSharedObject();
+                objectState = jvnGetServer().jvnLockWrite(this.id);
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case RC:
-                objectState = ((JvnObject) jvnGetServer().jvnLockRead(this.id)).jvnGetSharedObject();
+                objectState = jvnGetServer().jvnLockWrite(this.id);
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case WC:
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case R:
+                objectState = jvnGetServer().jvnLockWrite(this.id);
                 break;
             case W:
                 break;
@@ -189,12 +191,15 @@ public class JvnObjectImpl implements JvnObject, Remote{
                 throw new JvnException("Erreur : etat incompatible");
             }
         }
+        
+        System.out.println("---- IMPL -  Etat verrou après LockWrite : " + this.etatVerrou + " ----");
     }
 
     @Override
     public synchronized void jvnUnLock() throws JvnException {
         
         System.out.println("IMPL - jvnUnLock sur " + this.id);
+        System.out.println("---- IMPL -  Etat verrou avant UnLock : " + this.etatVerrou + " ----");
 
         switch(this.etatVerrou){
             case NL:
@@ -218,7 +223,9 @@ public class JvnObjectImpl implements JvnObject, Remote{
             default :
                 throw new JvnException("Erreur : etat incompatible");
         }
-            notify();
+        notify();
+
+        System.out.println("---- IMPL -  Etat verrou après UnLock : " + this.etatVerrou + " ----");
     }
 
 

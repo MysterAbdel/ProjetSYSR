@@ -37,11 +37,16 @@ public class Irc {
 		JvnObject jo = js.jvnLookupObject("IRC");
 		   
 		if (jo == null) {
+			System.out.println("-- IRC OBJECT NOT FOUND");
+
 			jo = js.jvnCreateObject((Serializable) new Sentence());
 			// after creation, I have a write lock on the object
 			jo.jvnUnLock();
 			js.jvnRegisterObject("IRC", jo);
+		} else {
+			System.out.println("-- IRC OBJECT FOUND");
 		}
+		
 		// create the graphical part of the Chat application
 		 new Irc(jo);
 	   
@@ -97,6 +102,7 @@ public class Irc {
 		
 		// invoke the method
 		String s = ((Sentence)(irc.sentence.jvnGetSharedObject())).read();
+		System.out.println("IRC -- Chaine de caractere lue : " + s);
 		
 		// unlock the object
 		irc.sentence.jvnUnLock();
@@ -133,6 +139,7 @@ public class Irc {
 		
 		// invoke the method
 		((Sentence)(irc.sentence.jvnGetSharedObject())).write(s);
+		System.out.println("IRC -- Chaine de caractere écrite : " + s);
 		
 		// unlock the object
 		irc.sentence.jvnUnLock();
