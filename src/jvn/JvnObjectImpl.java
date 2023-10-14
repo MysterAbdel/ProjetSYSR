@@ -117,7 +117,7 @@ public class JvnObjectImpl implements JvnObject, Remote{
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    this.etatVerrou = EtatVerrou.R;
+                    this.etatVerrou = EtatVerrou.RC;
                 }
                 break;
             default :
@@ -135,14 +135,12 @@ public class JvnObjectImpl implements JvnObject, Remote{
         
         switch(this.etatVerrou){
             case NL:
-                objectState = jvnGetServer().jvnLockRead(this.id);
                 this.etatVerrou = EtatVerrou.R;
                 break;
             case RC:
                 this.etatVerrou = EtatVerrou.R;
                 break;
             case WC:
-                objectState = jvnGetServer().jvnLockRead(this.id);
                 this.etatVerrou = EtatVerrou.RWC;
                 break;
             case R:
@@ -150,12 +148,12 @@ public class JvnObjectImpl implements JvnObject, Remote{
             case W:
                 break;
             case RWC:
-                
                 break;
             default :
                 throw new JvnException("Erreur : etat incompatible");
         }
 
+        objectState = jvnGetServer().jvnLockRead(this.id);
         System.out.println("---- IMPL -  Etat verrou après LockRead : " + this.etatVerrou + " ----");
 
     }
@@ -169,18 +167,15 @@ public class JvnObjectImpl implements JvnObject, Remote{
         synchronized(this){
             switch(this.etatVerrou){
             case NL:
-                objectState = jvnGetServer().jvnLockWrite(this.id);
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case RC:
-                objectState = jvnGetServer().jvnLockWrite(this.id);
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case WC:
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case R:
-                objectState = jvnGetServer().jvnLockWrite(this.id);
                 break;
             case W:
                 break;
@@ -191,7 +186,7 @@ public class JvnObjectImpl implements JvnObject, Remote{
                 throw new JvnException("Erreur : etat incompatible");
             }
         }
-        
+        objectState = jvnGetServer().jvnLockWrite(this.id);
         System.out.println("---- IMPL -  Etat verrou après LockWrite : " + this.etatVerrou + " ----");
     }
 

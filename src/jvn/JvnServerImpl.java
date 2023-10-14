@@ -31,7 +31,7 @@ public class JvnServerImpl
 
 	private String jvnCoordURL = "//localhost:2001/JvnCoordinatorLink";
 	
-	private HashMap<Integer,JvnObject> jvnObjects;
+	HashMap<Integer,JvnObject> jvnObjects;
   
 
   /**
