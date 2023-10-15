@@ -143,6 +143,7 @@ public class JvnServerImpl
 				System.out.println("JVS - objet non trouvé");
 			}
 			
+			return jo;
 		} catch (Exception e) {
 			System.out.println("JVS - Erreur de récupération de l'objet");
 			e.printStackTrace();

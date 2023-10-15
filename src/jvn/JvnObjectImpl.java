@@ -115,10 +115,11 @@ public class JvnObjectImpl implements Remote , JvnObject{
     @Override
     public synchronized void jvnLockRead() throws JvnException {
         System.out.println("IMPL - jvnLockRead appelé sur l'objet " + this.idUnique + " avec l'état " + this.etatVerrou + "");
-        
+
+        objetPartage = JvnServerImpl.jvnGetServer().jvnLockRead(this.idUnique);
+
         switch(this.etatVerrou){
             case NL:
-                objetPartage = JvnServerImpl.jvnGetServer().jvnLockRead(this.idUnique);
                 this.etatVerrou = EtatVerrou.R;
                 break;
             case RC:
@@ -130,14 +131,14 @@ public class JvnObjectImpl implements Remote , JvnObject{
             case R:
                 break;
             case W:
-                objetPartage = JvnServerImpl.jvnGetServer().jvnLockRead(this.idUnique);
-                etatVerrou = EtatVerrou.RWC;
+                this.etatVerrou = EtatVerrou.RWC;
                 break;
             case RWC:
                 break;
             default:
                 break;
         }
+
 
         System.out.println("IMPL - etat après jvnLockRead : " + this.etatVerrou + "");
     }
@@ -146,27 +147,24 @@ public class JvnObjectImpl implements Remote , JvnObject{
     public synchronized void jvnLockWrite() throws JvnException {
         System.out.println("IMPL - jvnLockWrite appelé sur l'objet " + this.idUnique + " avec l'état " + this.etatVerrou + "");
 
+        objetPartage = JvnServerImpl.jvnGetServer().jvnLockWrite(this.idUnique);
+
         switch (this.etatVerrou) {
             case NL:
-                objetPartage = JvnServerImpl.jvnGetServer().jvnLockWrite(this.idUnique);
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case RC:
-                objetPartage = JvnServerImpl.jvnGetServer().jvnLockWrite(this.idUnique);
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case WC:
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case R:
-                // TODO : à vérifier
-                objetPartage = JvnServerImpl.jvnGetServer().jvnLockWrite(this.idUnique);
                 this.etatVerrou = EtatVerrou.W;
                 break;
             case W:
                 break;
             case RWC:
-                // TODO : à vérifier
                 this.etatVerrou = EtatVerrou.W;
                 break;
             default:
