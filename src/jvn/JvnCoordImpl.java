@@ -120,6 +120,8 @@ public class JvnCoordImpl
     }
 
     int id = mapNomId.get(jon);
+    ((JvnObjectImpl) mapIdObject.get(id)).setEtatVerrou(EtatVerrou.NL);
+    System.out.println("JVC - Verrou after lookup OK : " + ((JvnObjectImpl) mapIdObject.get(id)).getEtatVerrou());
     return mapIdObject.get(id);
   }
   
@@ -207,8 +209,26 @@ public class JvnCoordImpl
 	**/
     public void jvnTerminate(JvnRemoteServer js)
 	 throws java.rmi.RemoteException, JvnException {
-	 // to be completed
+    System.out.println("JVC - jvnTerminate");
+
+    for(Iterator<Integer> it = mapIdObject.keySet().iterator(); it.hasNext(); ) {
+      int id = it.next();
+      for(Iterator<JvnRemoteServer> it2 = mapIdListeServeursLecture.get(id).iterator(); it2.hasNext(); ) {
+        JvnRemoteServer jServer = it2.next();
+        if (jServer.equals(js)) {
+          jServer.jvnInvalidateReader(id);
+          it2.remove();
+        }
+      }
+
+      if (mapIdServeurEcriture.get(id) != null && mapIdServeurEcriture.get(id).equals(js)) {
+        mapIdServeurEcriture.get(id).jvnInvalidateWriter(id);
+        mapIdServeurEcriture.remove(id);
+      }
     }
+  } 
+
 }
+
 
  
