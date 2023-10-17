@@ -54,6 +54,7 @@ public class JvnObjectImpl implements Remote , JvnObject{
 
         while(this.etatVerrou == EtatVerrou.R || this.etatVerrou == EtatVerrou.RWC){
             try {
+            	System.out.println("Appel de wait");
                 wait();
                 this.etatVerrou = EtatVerrou.NL;
             } catch (InterruptedException e) {
@@ -82,6 +83,7 @@ public class JvnObjectImpl implements Remote , JvnObject{
 
         while(this.etatVerrou == EtatVerrou.W){
             try {
+            	System.out.println("Appel de wait");
                 wait();
                 this.etatVerrou = EtatVerrou.NL;
             } catch (InterruptedException e) {
@@ -98,19 +100,22 @@ public class JvnObjectImpl implements Remote , JvnObject{
         System.out.println("IMPL - jvnInvalidateWriterForReader appelé sur l'objet " + this.idUnique + " avec l'état " + this.etatVerrou + "");
 
         if (this.etatVerrou == EtatVerrou.RWC || this.etatVerrou == EtatVerrou.WC){
-            this.etatVerrou = EtatVerrou.R;
+            this.etatVerrou = EtatVerrou.RC;
             System.out.println("IMPL - etat après jvnInvalidateWriterForReader : " + this.etatVerrou + "");
             return this.objetPartage;
         }
 
-        while(this.etatVerrou == EtatVerrou.W){
-            try {
-                wait();
-                this.etatVerrou = EtatVerrou.RC;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+        if(this.etatVerrou==EtatVerrou.W) {
+        	 while(this.etatVerrou == EtatVerrou.W){
+                 try {
+                     wait();
+                     this.etatVerrou = EtatVerrou.RC;
+                 } catch (InterruptedException e) {
+                     e.printStackTrace();
+                 }
+             }
         }
+       
 
         System.out.println("IMPL - etat après jvnInvalidateWriterForReader : " + this.etatVerrou + "");
         return this.objetPartage;
@@ -125,6 +130,7 @@ public class JvnObjectImpl implements Remote , JvnObject{
         switch(this.etatVerrou){
             case NL:
                 objetPartage = JvnServerImpl.jvnGetServer().jvnLockRead(this.idUnique);
+                System.out.println("hhhhhhh"+objetPartage);
                 this.etatVerrou = EtatVerrou.R;
                 break;
             case RC:
@@ -199,7 +205,7 @@ public class JvnObjectImpl implements Remote , JvnObject{
             default:
                 throw new JvnException("Unlock impossible dans cet etat");
         }
-
+        System.out.println("Appel de notify");
         notify();
 
         System.out.println("IMPL - etat après jvnUnLock : " + this.etatVerrou + "");

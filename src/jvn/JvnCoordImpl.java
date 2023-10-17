@@ -15,6 +15,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Iterator;
 
@@ -40,7 +41,7 @@ public class JvnCoordImpl
   private HashMap<Integer, JvnObject> mapIdObject;
   
   // Hashmap Id/Liste_serveurs_ayant_le_lock_en_lecture
-  private HashMap<Integer, List<JvnRemoteServer>> mapIdListeServeursLecture;
+  private HashMap<Integer, HashSet<JvnRemoteServer>> mapIdListeServeursLecture;
 
   // Hashmap Id/Serveur_ayant_le_lock_en_ecriture
   private HashMap<Integer, JvnRemoteServer> mapIdServeurEcriture;
@@ -55,7 +56,7 @@ public class JvnCoordImpl
 
     mapNomId = new HashMap<String, Integer>();
     mapIdObject = new HashMap<Integer, JvnObject>();
-    mapIdListeServeursLecture = new HashMap<Integer, List<JvnRemoteServer>>();
+    mapIdListeServeursLecture = new HashMap<>();
     mapIdServeurEcriture = new HashMap<Integer, JvnRemoteServer>();
 
     LocateRegistry.createRegistry(2001);
@@ -103,6 +104,8 @@ public class JvnCoordImpl
     mapNomId.put(jon, jo.jvnGetObjectId());
     mapIdObject.put(jo.jvnGetObjectId(), jo);
     mapIdServeurEcriture.put(jo.jvnGetObjectId(), js);
+    mapIdListeServeursLecture.put(jo.jvnGetObjectId(), new HashSet<JvnRemoteServer>());
+
   }
   
   /**
@@ -133,44 +136,40 @@ public class JvnCoordImpl
   * @throws java.rmi.RemoteException, JvnException
   **/
   public synchronized Serializable jvnLockRead(int joi, JvnRemoteServer js)
-  throws java.rmi.RemoteException, JvnException {
-    System.out.println("JVC - jvnLockRead of object " + joi);
-    System.out.println("JVC - jvnLockRead state before: " + ((JvnObjectImpl) mapIdObject.get(joi)).getEtatVerrou());
+		  throws java.rmi.RemoteException, JvnException {
 
-    JvnObject jo = mapIdObject.get(joi);
+		    System.out.println("JVC - jvnLockRead of object " + joi);
+		    System.out.println("JVC - jvnLockRead state before: " + ((JvnObjectImpl) mapIdObject.get(joi)).getEtatVerrou());
 
-    if (!mapIdListeServeursLecture.containsKey(joi)) {
-      mapIdListeServeursLecture.put(joi, new ArrayList<JvnRemoteServer>());
-    }
+		    JvnObject jo = mapIdObject.get(joi);
+		    Serializable etat = jo.jvnGetSharedObject();
 
-    boolean possedeVerrouEnLecture = mapIdListeServeursLecture.get(joi).contains(js);
-    boolean possedeVerrouEnEcriture = mapIdServeurEcriture.get(joi) != null && mapIdServeurEcriture.get(joi).equals(js);
+		    JvnRemoteServer possesseurEnEcriture = mapIdServeurEcriture.get(joi);
 
-    Serializable currentState = jo.jvnGetSharedObject();
+		    if (possesseurEnEcriture!=null) {
+		        try {
+		            etat=possesseurEnEcriture.jvnInvalidateWriterForReader(joi);
+		        } catch (Exception e) {
 
-    for(Iterator<JvnRemoteServer> it = mapIdListeServeursLecture.get(joi).iterator(); it.hasNext(); ) {
-      JvnRemoteServer jServer = it.next();
-      if (!jServer.equals(js)) {
-        jServer.jvnInvalidateReader(joi);
-        it.remove();
-      }
-    }
+		        }
 
-    if (mapIdServeurEcriture.get(joi) != null && !possedeVerrouEnEcriture) {
-      currentState = mapIdServeurEcriture.get(joi).jvnInvalidateWriterForReader(joi);
-      ((JvnObjectImpl) jo).jvnSetSharedObject(currentState);
-      mapIdObject.put(joi, jo);
-      //mapIdServeurEcriture.put(joi, null);
-    }
+		        if(possesseurEnEcriture.equals(mapIdServeurEcriture.get(joi))) {
+		        	System.out.println("LockRead------"+mapIdListeServeursLecture.get(joi));
+		            mapIdListeServeursLecture.get(joi).add(possesseurEnEcriture);
 
-    if (!possedeVerrouEnLecture) {
-      mapIdListeServeursLecture.get(joi).add(js);
-    }
+		            }
+		    }
 
-    System.out.println("JVC - jvnLockRead state after: " + ((JvnObjectImpl) mapIdObject.get(joi)).getEtatVerrou());
+		    ((JvnObjectImpl) jo).jvnSetSharedObject(etat);
+		    mapIdListeServeursLecture.get(joi).add(js);
+		    mapIdServeurEcriture.put(joi, null);
 
-    return currentState;
-}
+		    System.out.println("JVC - jvnLockRead state after: " + ((JvnObjectImpl) mapIdObject.get(joi)).getEtatVerrou());
+
+		    return etat;
+		}
+
+		  
 
   /**
   * Get a Write lock on a JVN object managed by a given JVN server 
@@ -180,27 +179,55 @@ public class JvnCoordImpl
   * @throws java.rmi.RemoteException, JvnException
   **/
   public synchronized Serializable jvnLockWrite(int joi, JvnRemoteServer js)
-  throws java.rmi.RemoteException, JvnException {
-    System.out.println("JVC - jvnLockWrite of object " + joi);
-    System.out.println("JVC - jvnLockWrite state before: " + ((JvnObjectImpl) mapIdObject.get(joi)).getEtatVerrou());
+		  throws java.rmi.RemoteException, JvnException {
 
-    JvnObject jo = mapIdObject.get(joi);
+		    System.out.println("JVC - jvnLockWrite of object " + joi);
+		    System.out.println("JVC - jvnLockWrite state before: " + ((JvnObjectImpl) mapIdObject.get(joi)).getEtatVerrou());
 
-    boolean possedeVerrouEnEcriture = mapIdServeurEcriture.get(joi) != null && mapIdServeurEcriture.get(joi).equals(js);
+		    JvnObject jo = mapIdObject.get(joi);
 
-    Serializable currentState = jo.jvnGetSharedObject();
+		    Serializable ret = null;
 
-    if (!possedeVerrouEnEcriture) {
-      currentState = mapIdServeurEcriture.get(joi).jvnInvalidateWriter(joi);
-      ((JvnObjectImpl) jo).jvnSetSharedObject(currentState);
-      mapIdObject.put(joi, jo);
-      mapIdServeurEcriture.put(joi, js);
-    }
+		    JvnRemoteServer server = null;
 
-    System.out.println("JVC - jvnLockWrite state after: " + ((JvnObjectImpl) mapIdObject.get(joi)).getEtatVerrou());
+		        jo = mapIdObject.get(joi);
+		        ret = jo.jvnGetSharedObject();
+		        server = mapIdServeurEcriture.get(joi);
 
-    return currentState;
-  }
+		        if (server != null) {
+		            try {
+		                ret = server.jvnInvalidateWriter(joi);
+		            } catch (Exception e) {
+		            }
+		            if (server.equals(mapIdServeurEcriture.get(joi))) {
+		            	System.out.println("LockWrite------"+mapIdListeServeursLecture.get(joi));
+		                 mapIdListeServeursLecture.get(joi).add(server);
+		            }
+		        }
+		        ArrayList<JvnRemoteServer> readerList = new ArrayList<>();
+		        ((JvnObjectImpl) jo).jvnSetSharedObject(ret);
+		        //jo.jvn(ret);
+		        // saveState();
+		        Iterator<JvnRemoteServer> it = mapIdListeServeursLecture.get(joi).iterator();
+		        while (it.hasNext()) {
+		            JvnRemoteServer current = it.next();
+		            if (!current.equals(js)) {
+		                readerList.add(current);
+		            }
+		        }
+		        for (JvnRemoteServer s : readerList) {
+		            try {
+		                s.jvnInvalidateReader(joi);
+		            } catch (Exception e) {
+		            }
+		        }
+		        // Plus personne ne doit pouvoir être en mesure de lire
+		        mapIdListeServeursLecture.get(joi).clear();
+		        mapIdServeurEcriture.put(joi, js);
+
+		    return ret;
+
+		  }
 
 	/**
 	* A JVN server terminates
