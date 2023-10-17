@@ -1,21 +1,41 @@
 package jvn;
 
+import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+
+import irc.Sentence;
 
 public class JvnProxy implements InvocationHandler {
 
     private JvnObject obj;
 
-    private JvnProxy(Object obj){
-        this.obj = (JvnObject) obj;
+    private JvnProxy(Serializable obj, String jon){
+        try {
+            JvnServerImpl js = JvnServerImpl.jvnGetServer();
+            
+            // look up the IRC object in the JVN server
+            // if not found, create it, and register it in the JVN server
+            JvnObject jo = js.jvnLookupObject(jon);
+            
+            if (jo == null) {
+                jo = js.jvnCreateObject((Serializable) new Sentence());
+                // after creation, I have a write lock on the object
+                jo.jvnUnLock();
+                js.jvnRegisterObject(jon, jo);
+            }
+            
+            this.obj = jo;
+        } catch (JvnException e) {
+            e.printStackTrace();
+        }
     }
 
-    public static Object newInstance(Object obj){
+    public static Object newInstance(Serializable obj,String jon){
         return java.lang.reflect.Proxy.newProxyInstance(
             obj.getClass().getClassLoader(),
             obj.getClass().getInterfaces(),
-            new JvnProxy(obj)
+            new JvnProxy(obj,jon)
         );
     }
 

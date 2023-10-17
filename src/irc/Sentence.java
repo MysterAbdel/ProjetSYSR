@@ -8,6 +8,8 @@
 
 package irc;
 
+import jvn.JvnAnnotation;
+
 public class Sentence implements java.io.Serializable {
 	/**
 	 * 
@@ -19,9 +21,12 @@ public class Sentence implements java.io.Serializable {
 		data = new String("");
 	}
 	
+	@JvnAnnotation(nom="WRITE")
 	public void write(String text) {
 		data = text;
 	}
+
+	@JvnAnnotation(nom="READ")
 	public String read() {
 		return data;	
 	}

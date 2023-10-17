@@ -16,7 +16,6 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Iterator;
 
 
@@ -221,7 +220,7 @@ public class JvnCoordImpl
 		            } catch (Exception e) {
 		            }
 		        }
-		        // Plus personne ne doit pouvoir être en mesure de lire
+		        // Plus personne ne doit pouvoir ï¿½tre en mesure de lire
 		        mapIdListeServeursLecture.get(joi).clear();
 		        mapIdServeurEcriture.put(joi, js);
 
