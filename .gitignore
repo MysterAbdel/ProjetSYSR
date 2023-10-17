@@ -36,3 +36,4 @@ tmp/**/*
 local.properties
 .settings/
 .loadpath
+/bin/
