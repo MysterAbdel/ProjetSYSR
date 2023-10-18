@@ -44,10 +44,9 @@ public class JvnProxy implements InvocationHandler {
         Object result = null;
         JvnAnnotation annotation = null;
         try {
-            
+
             annotation = m.getAnnotation(JvnAnnotation.class);
             
-           
             System.out.println("JP invoke - Annotation : " + annotation.nom());
 
             switch(annotation.nom()){

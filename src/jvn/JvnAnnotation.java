@@ -2,13 +2,10 @@ package jvn;
 import java.lang.annotation.*;
 
 /*
- * << Le générateur de classes d’interposition jvnc interprête
- * les annotations présentes dans les classes des objets Jvn.
- * On utilise donc des annotations dont la rétention est de 
- * type Class >>
+ * << Ces annotations sont présentes dans les classes chargées,
+ * donc accessibles durant l'exécution >>
  */
-@Retention(RetentionPolicy.CLASS)
-//@Retention(RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.RUNTIME)
 
 /*
  * << Ces annotations permettent de connaître le type 
