@@ -16,7 +16,6 @@ import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-import jvn.JvnObject;
 import jvn.JvnProxy;
 
 
@@ -24,7 +23,7 @@ public class Irc2 {
 	public TextArea		text;
 	public TextField	data;
 	Frame 			frame;
-	Sentence       sentence;
+	ISentence       sentence;
 
 
   /**
@@ -34,7 +33,7 @@ public class Irc2 {
 	public static void main(String argv[]) {
 	   try {
 		   
-		Sentence jo = (Sentence) JvnProxy.newInstance(new Sentence(), "IRC");
+		ISentence jo = (ISentence) JvnProxy.newInstance(new Sentence(), "IRC");
 		new Irc2(jo);
 	   
 	   } catch (Exception e) {
@@ -44,9 +43,9 @@ public class Irc2 {
 
   /**
    * IRC Constructor
-   @param jo the Sentence representing the Chat
+   @param jo the ISentence representing the Chat
    **/
-	public Irc2(Sentence jo) {
+	public Irc2(ISentence jo) {
 		sentence = jo;
 		frame=new Frame();
 		frame.setLayout(new GridLayout(1,1));

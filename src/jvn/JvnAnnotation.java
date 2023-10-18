@@ -8,6 +8,7 @@ import java.lang.annotation.*;
  * type Class >>
  */
 @Retention(RetentionPolicy.CLASS)
+//@Retention(RetentionPolicy.RUNTIME)
 
 /*
  * << Ces annotations permettent de connaître le type 

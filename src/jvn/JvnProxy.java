@@ -42,9 +42,13 @@ public class JvnProxy implements InvocationHandler {
     @Override
     public Object invoke(Object proxy, Method m, Object[] args) throws JvnException {
         Object result = null;
+        JvnAnnotation annotation = null;
         try {
             
-            JvnAnnotation annotation = m.getAnnotation(JvnAnnotation.class);
+            annotation = m.getAnnotation(JvnAnnotation.class);
+            
+           
+            System.out.println("JP invoke - Annotation : " + annotation.nom());
 
             switch(annotation.nom()){
                 case "READ":
