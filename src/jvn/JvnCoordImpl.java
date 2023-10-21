@@ -45,12 +45,18 @@ public class JvnCoordImpl
   // Hashmap Id/Serveur_ayant_le_lock_en_ecriture
   private HashMap<Integer, JvnRemoteServer> mapIdServeurEcriture;
 
+  //EXTENSION [CACHE]: taille du cache d'un serveur
+  //Idée : avant d'ajouter l'objet au js via jvnLockRead ou jvnLockWrite, on vérifie si le cache est plein
+  //Si oui, on fait un jvnFlush qui devrait invalider les existants (mettre les RC et WC à NL)
+  //et vider le tableau des objets locaux sur le js
+  private int tailleCache = 0;
+
   
 /**
   * Default constructor
   * @throws JvnException
   **/
-	private JvnCoordImpl() throws Exception {
+	private JvnCoordImpl(String[] args) throws Exception {
     super();
 
     mapNomId = new HashMap<String, Integer>();
@@ -58,13 +64,18 @@ public class JvnCoordImpl
     mapIdListeServeursLecture = new HashMap<>();
     mapIdServeurEcriture = new HashMap<Integer, JvnRemoteServer>();
 
+    // argument 0 : taille du cache
+    if (args.length > 0) {
+      tailleCache = Integer.parseInt(args[0]);
+    }
+
     LocateRegistry.createRegistry(2001);
     Naming.bind(jvnCoordURL, this);
 	}
 
   public static void main(String[] args) {
     try {
-      new JvnCoordImpl();
+      new JvnCoordImpl(args);
       System.out.println("JvnCoordImpl ready");
     } catch (Exception e) {
       e.printStackTrace();
@@ -254,7 +265,63 @@ public class JvnCoordImpl
     }
   } 
 
+  /**
+	* A JVN server flushes its LOCAL cache - EXTENSION [CACHE]
+	* @param js  : the remote reference of the server
+	* @throws java.rmi.RemoteException, JvnException
+	**/
+    public void jvnFlush(JvnRemoteServer js)
+	 throws java.rmi.RemoteException, JvnException {
+    System.out.println("JVC - jvnFlush");
+
+    for(Iterator<Integer> it = mapIdObject.keySet().iterator(); it.hasNext(); ) {
+      int id = it.next();
+      for(Iterator<JvnRemoteServer> it2 = mapIdListeServeursLecture.get(id).iterator(); it2.hasNext(); ) {
+        JvnRemoteServer jServer = it2.next();
+        if (jServer.equals(js)) {
+          jServer.jvnInvalidateReader(id);
+        }
+      }
+
+      if (mapIdServeurEcriture.get(id) != null && mapIdServeurEcriture.get(id).equals(js)) {
+        mapIdServeurEcriture.get(id).jvnInvalidateWriter(id);
+      }
+    }
+
+    ((JvnServerImpl) js).flushLocalObjects();
+  } 
+
+  /**
+   * Ping the coordinator -- EXTENSION [PANNE COORDINATEUR]
+   */
+  public void jvnPing(){
+    System.out.println("JVC - jvnPing");
+  }
+
+  /**
+   * Disconnect the coordinator -- EXTENSION [PANNE COORDINATEUR]
+   */
+  public void jvnDisconnectCoordinator(){
+    try {
+      Naming.unbind(jvnCoordURL);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  /**
+   * Reconnect the coordinator -- EXTENSION [PANNE COORDINATEUR]
+   */
+  public void jvnReconnectCoordinator(){
+    try {
+      Naming.rebind(jvnCoordURL, this);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
 }
+
 
 
  
