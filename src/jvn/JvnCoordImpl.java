@@ -45,7 +45,7 @@ public class JvnCoordImpl
   // Hashmap Id/Serveur_ayant_le_lock_en_ecriture
   private HashMap<Integer, JvnRemoteServer> mapIdServeurEcriture;
 
-  //EXTENSION [CACHE]: taille du cache d'un serveur
+  //EXTENSION [CACHE CLIENT]: taille du cache d'un serveur
   //Idée : avant d'ajouter l'objet au js via jvnLockRead ou jvnLockWrite, on vérifie si le cache est plein
   //Si oui, on fait un jvnFlush qui devrait invalider les existants (mettre les RC et WC à NL)
   //et vider le tableau des objets locaux sur le js
@@ -64,7 +64,7 @@ public class JvnCoordImpl
     mapIdListeServeursLecture = new HashMap<>();
     mapIdServeurEcriture = new HashMap<Integer, JvnRemoteServer>();
 
-    // argument 0 : taille du cache
+    // argument 0 : taille du cache des serveurs
     if (args.length > 0) {
       tailleCache = Integer.parseInt(args[0]);
     }
@@ -75,7 +75,16 @@ public class JvnCoordImpl
 
   public static void main(String[] args) {
     try {
-      new JvnCoordImpl(args);
+      //-- EXTENSION [PANNE COORDINATEUR]
+      JvnCoordImpl jci = JvnCoordCache.getJvnCoordCache().loadCoordinatorFromCache(); 
+      if (jci != null) {
+        System.out.println("JVC - Coordinator loaded from cache");
+        LocateRegistry.createRegistry(2001);
+        Naming.bind("//localhost:2001/JvnCoord", jci);
+      } else {
+        System.out.println("JVC - No cache found");
+        new JvnCoordImpl(args);
+      }
       System.out.println("JvnCoordImpl ready");
     } catch (Exception e) {
       e.printStackTrace();
@@ -116,6 +125,7 @@ public class JvnCoordImpl
     mapIdServeurEcriture.put(jo.jvnGetObjectId(), js);
     mapIdListeServeursLecture.put(jo.jvnGetObjectId(), new HashSet<JvnRemoteServer>());
 
+    JvnCoordCache.getJvnCoordCache().saveCoordinatorIntoCache(this);
   }
   
   /**
@@ -135,6 +145,8 @@ public class JvnCoordImpl
     int id = mapNomId.get(jon);
     ((JvnObjectImpl) mapIdObject.get(id)).setEtatVerrou(EtatVerrou.NL);
     System.out.println("JVC - Verrou after lookup OK : " + ((JvnObjectImpl) mapIdObject.get(id)).getEtatVerrou());
+
+    JvnCoordCache.getJvnCoordCache().saveCoordinatorIntoCache(this);
     return mapIdObject.get(id);
   }
   
@@ -176,7 +188,8 @@ public class JvnCoordImpl
 
 		    System.out.println("JVC - jvnLockRead state after: " + ((JvnObjectImpl) mapIdObject.get(joi)).getEtatVerrou());
 
-		    return etat;
+        JvnCoordCache.getJvnCoordCache().saveCoordinatorIntoCache(this);
+        return etat;
 		}
 
 		  
@@ -235,6 +248,7 @@ public class JvnCoordImpl
 		        mapIdListeServeursLecture.get(joi).clear();
 		        mapIdServeurEcriture.put(joi, js);
 
+        JvnCoordCache.getJvnCoordCache().saveCoordinatorIntoCache(this);    
 		    return ret;
 
 		  }
@@ -266,7 +280,7 @@ public class JvnCoordImpl
   } 
 
   /**
-	* A JVN server flushes its LOCAL cache - EXTENSION [CACHE]
+	* A JVN server flushes its LOCAL cache - EXTENSION [CACHE CLIENT]
 	* @param js  : the remote reference of the server
 	* @throws java.rmi.RemoteException, JvnException
 	**/
@@ -291,33 +305,11 @@ public class JvnCoordImpl
     ((JvnServerImpl) js).flushLocalObjects();
   } 
 
-  /**
-   * Ping the coordinator -- EXTENSION [PANNE COORDINATEUR]
-   */
-  public void jvnPing(){
-    System.out.println("JVC - jvnPing");
-  }
-
-  /**
-   * Disconnect the coordinator -- EXTENSION [PANNE COORDINATEUR]
-   */
-  public void jvnDisconnectCoordinator(){
-    try {
-      Naming.unbind(jvnCoordURL);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-  }
-
-  /**
-   * Reconnect the coordinator -- EXTENSION [PANNE COORDINATEUR]
-   */
-  public void jvnReconnectCoordinator(){
-    try {
-      Naming.rebind(jvnCoordURL, this);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
+  public void jvnPrintStats(){
+    System.out.println("------| JvnCoordinator STATS |----------");
+    System.out.println("JVC - Nombre d'objets en cache : " + mapIdObject.size());
+    System.out.println("JVC - Noms symboliques enregistrés : " + mapNomId.keySet());
+    System.out.println("----------------------------------------");
   }
 
 }

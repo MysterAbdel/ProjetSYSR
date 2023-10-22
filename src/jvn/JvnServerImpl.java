@@ -168,9 +168,9 @@ public class JvnServerImpl
 			return jvnCoord.jvnLockRead(joi, js);
 		} catch (Exception e) {
 			System.out.println("JVS - Erreur de lock read");
-			e.printStackTrace();
+			tryReconnect();
+			return jvnLockRead(joi);
 		}
-		return null;
 	}	
 	/**
 	* Get a Write lock on a JVN object 
@@ -185,9 +185,9 @@ public class JvnServerImpl
 			return jvnCoord.jvnLockWrite(joi, js);
 		} catch (Exception e) {
 			System.out.println("JVS - Erreur de lock write");
-			e.printStackTrace();
+			tryReconnect();
+			return jvnLockWrite(joi);
 		}
-		return null;
 	}	
 
 	
@@ -242,6 +242,27 @@ public class JvnServerImpl
 	public void flushLocalObjects() {
 		mapIdObject.clear();
 	}
+
+	/**
+	 * try to reconnect to the coordinator -- EXTENSION [PANNE COORDINATEUR]
+	 */
+	public void tryReconnect() {
+		boolean connected = false;
+		while (!connected) {
+			try {
+				jvnCoord = (JvnRemoteCoord) Naming.lookup(jvnCoordURL);
+				connected = true;
+			} catch (Exception e) {
+				System.out.println("Trying to reconnect in 1 second...");
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException ex) {
+					ex.printStackTrace();
+				}
+			}
+		}
+	}
+	
 
 }
 
