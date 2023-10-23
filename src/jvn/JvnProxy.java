@@ -19,7 +19,7 @@ public class JvnProxy implements InvocationHandler {
             JvnObject jo = js.jvnLookupObject(jon);
             
             if (jo == null) {
-                jo = js.jvnCreateObject((Serializable) new Sentence());
+                jo = js.jvnCreateObject(obj);
                 // after creation, I have a write lock on the object
                 jo.jvnUnLock();
                 js.jvnRegisterObject(jon, jo);
