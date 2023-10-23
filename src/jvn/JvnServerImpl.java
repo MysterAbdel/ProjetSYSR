@@ -15,8 +15,6 @@ import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 
-
-
 public class JvnServerImpl 	
               extends UnicastRemoteObject 
 							implements JvnLocalServer, JvnRemoteServer{ 
@@ -46,6 +44,12 @@ public class JvnServerImpl
 			jvnCoord = (JvnRemoteCoord) Naming.lookup(jvnCoordURL);
 			mapIdObject = new HashMap<Integer, JvnObject>();
 			System.out.println("JVS - jvnCoord récupéré : " + jvnCoord);
+
+			// EXTENSION [PANNE COORDINATEUR]
+			// Idée : constemment vérifier si le coordonnateur est toujours vivant
+			// en faisant un appel à jvnPing toutes les 5 secondes par exemple
+			// Si non, on met le js en pause pendant qu'on le récupère à nouveau
+
 		} catch (Exception e) {
 			System.out.println("Erreur de récupération du coordonnateur");
 			e.printStackTrace();
@@ -164,9 +168,9 @@ public class JvnServerImpl
 			return jvnCoord.jvnLockRead(joi, js);
 		} catch (Exception e) {
 			System.out.println("JVS - Erreur de lock read");
-			e.printStackTrace();
+			tryReconnect();
+			return jvnLockRead(joi);
 		}
-		return null;
 	}	
 	/**
 	* Get a Write lock on a JVN object 
@@ -181,9 +185,9 @@ public class JvnServerImpl
 			return jvnCoord.jvnLockWrite(joi, js);
 		} catch (Exception e) {
 			System.out.println("JVS - Erreur de lock write");
-			e.printStackTrace();
+			tryReconnect();
+			return jvnLockWrite(joi);
 		}
-		return null;
 	}	
 
 	
@@ -223,6 +227,42 @@ public class JvnServerImpl
 		System.out.println("JVS - jvnInvalidateWriterForReader");
 		return this.mapIdObject.get(joi).jvnInvalidateWriterForReader();
 	 };
+
+
+	/**
+	 * @return the mapIdObject's size (number of local objects) -- EXTENSION [CACHE]
+	 */
+	public int getNumberOfLocalObjects() {
+		return mapIdObject.size();
+	}
+
+	/**
+	 * empty the mapIdObject -- EXTENSION [CACHE]
+	 */
+	public void flushLocalObjects() {
+		mapIdObject.clear();
+	}
+
+	/**
+	 * try to reconnect to the coordinator -- EXTENSION [PANNE COORDINATEUR]
+	 */
+	public void tryReconnect() {
+		boolean connected = false;
+		while (!connected) {
+			try {
+				jvnCoord = (JvnRemoteCoord) Naming.lookup(jvnCoordURL);
+				connected = true;
+			} catch (Exception e) {
+				System.out.println("Trying to reconnect in 1 second...");
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException ex) {
+					ex.printStackTrace();
+				}
+			}
+		}
+	}
+	
 
 }
 
