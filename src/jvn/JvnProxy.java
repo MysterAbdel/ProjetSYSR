@@ -4,8 +4,6 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 
-import irc.Sentence;
-
 public class JvnProxy implements InvocationHandler {
 
     private JvnObject obj;
