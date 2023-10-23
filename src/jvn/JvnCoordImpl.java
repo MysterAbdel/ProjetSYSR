@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Iterator;
 
 
-public class JvnCoordImpl 	
+public class   JvnCoordImpl
               extends UnicastRemoteObject 
 							implements JvnRemoteCoord{
 	
@@ -221,7 +221,7 @@ public class JvnCoordImpl
 		            } catch (Exception e) {
 		            }
 		        }
-		        // Plus personne ne doit pouvoir être en mesure de lire
+		        // Plus personne ne doit pouvoir ï¿½tre en mesure de lire
 		        mapIdListeServeursLecture.get(joi).clear();
 		        mapIdServeurEcriture.put(joi, js);
 
