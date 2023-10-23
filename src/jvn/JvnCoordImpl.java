@@ -16,7 +16,6 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Iterator;
 
 
@@ -46,12 +45,18 @@ public class   JvnCoordImpl
   // Hashmap Id/Serveur_ayant_le_lock_en_ecriture
   private HashMap<Integer, JvnRemoteServer> mapIdServeurEcriture;
 
+  //EXTENSION [CACHE CLIENT]: taille du cache d'un serveur
+  //Idée : avant d'ajouter l'objet au js via jvnLockRead ou jvnLockWrite, on vérifie si le cache est plein
+  //Si oui, on fait un jvnFlush qui devrait invalider les existants (mettre les RC et WC à NL)
+  //et vider le tableau des objets locaux sur le js
+  private int tailleCache = 0;
+
   
 /**
   * Default constructor
   * @throws JvnException
   **/
-	private JvnCoordImpl() throws Exception {
+	private JvnCoordImpl(String[] args) throws Exception {
     super();
 
     mapNomId = new HashMap<String, Integer>();
@@ -59,13 +64,27 @@ public class   JvnCoordImpl
     mapIdListeServeursLecture = new HashMap<>();
     mapIdServeurEcriture = new HashMap<Integer, JvnRemoteServer>();
 
+    // argument 0 : taille du cache des serveurs
+    if (args.length > 0) {
+      tailleCache = Integer.parseInt(args[0]);
+    }
+
     LocateRegistry.createRegistry(2001);
     Naming.bind(jvnCoordURL, this);
 	}
 
   public static void main(String[] args) {
     try {
-      new JvnCoordImpl();
+      //-- EXTENSION [PANNE COORDINATEUR]
+      JvnCoordImpl jci = JvnCoordCache.getJvnCoordCache().loadCoordinatorFromCache(); 
+      if (jci != null) {
+        System.out.println("JVC - Coordinator loaded from cache");
+        LocateRegistry.createRegistry(2001);
+        Naming.bind("//localhost:2001/JvnCoord", jci);
+      } else {
+        System.out.println("JVC - No cache found");
+        new JvnCoordImpl(args);
+      }
       System.out.println("JvnCoordImpl ready");
     } catch (Exception e) {
       e.printStackTrace();
@@ -106,6 +125,7 @@ public class   JvnCoordImpl
     mapIdServeurEcriture.put(jo.jvnGetObjectId(), js);
     mapIdListeServeursLecture.put(jo.jvnGetObjectId(), new HashSet<JvnRemoteServer>());
 
+    JvnCoordCache.getJvnCoordCache().saveCoordinatorIntoCache(this);
   }
   
   /**
@@ -125,6 +145,8 @@ public class   JvnCoordImpl
     int id = mapNomId.get(jon);
     ((JvnObjectImpl) mapIdObject.get(id)).setEtatVerrou(EtatVerrou.NL);
     System.out.println("JVC - Verrou after lookup OK : " + ((JvnObjectImpl) mapIdObject.get(id)).getEtatVerrou());
+
+    JvnCoordCache.getJvnCoordCache().saveCoordinatorIntoCache(this);
     return mapIdObject.get(id);
   }
   
@@ -166,7 +188,8 @@ public class   JvnCoordImpl
 
 		    System.out.println("JVC - jvnLockRead state after: " + ((JvnObjectImpl) mapIdObject.get(joi)).getEtatVerrou());
 
-		    return etat;
+        JvnCoordCache.getJvnCoordCache().saveCoordinatorIntoCache(this);
+        return etat;
 		}
 
 		  
@@ -225,6 +248,7 @@ public class   JvnCoordImpl
 		        mapIdListeServeursLecture.get(joi).clear();
 		        mapIdServeurEcriture.put(joi, js);
 
+        JvnCoordCache.getJvnCoordCache().saveCoordinatorIntoCache(this);    
 		    return ret;
 
 		  }
@@ -255,7 +279,41 @@ public class   JvnCoordImpl
     }
   } 
 
+  /**
+	* A JVN server flushes its LOCAL cache - EXTENSION [CACHE CLIENT]
+	* @param js  : the remote reference of the server
+	* @throws java.rmi.RemoteException, JvnException
+	**/
+    public void jvnFlush(JvnRemoteServer js)
+	 throws java.rmi.RemoteException, JvnException {
+    System.out.println("JVC - jvnFlush");
+
+    for(Iterator<Integer> it = mapIdObject.keySet().iterator(); it.hasNext(); ) {
+      int id = it.next();
+      for(Iterator<JvnRemoteServer> it2 = mapIdListeServeursLecture.get(id).iterator(); it2.hasNext(); ) {
+        JvnRemoteServer jServer = it2.next();
+        if (jServer.equals(js)) {
+          jServer.jvnInvalidateReader(id);
+        }
+      }
+
+      if (mapIdServeurEcriture.get(id) != null && mapIdServeurEcriture.get(id).equals(js)) {
+        mapIdServeurEcriture.get(id).jvnInvalidateWriter(id);
+      }
+    }
+
+    ((JvnServerImpl) js).flushLocalObjects();
+  } 
+
+  public void jvnPrintStats(){
+    System.out.println("------| JvnCoordinator STATS |----------");
+    System.out.println("JVC - Nombre d'objets en cache : " + mapIdObject.size());
+    System.out.println("JVC - Noms symboliques enregistrés : " + mapNomId.keySet());
+    System.out.println("----------------------------------------");
+  }
+
 }
+
 
 
  

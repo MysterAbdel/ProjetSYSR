@@ -37,3 +37,6 @@ local.properties
 .settings/
 .loadpath
 /bin/
+
+# .ser files
+*.ser
